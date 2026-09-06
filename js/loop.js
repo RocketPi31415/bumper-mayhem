@@ -345,8 +345,12 @@ function animate() {
                         midpoint.copy(player2.position);
                     }
 
-                    const dynamicCamDistance = Math.max(30, Math.min(120, playerDist * 0.9 + 25));
-                    const dynamicCamHeight = Math.max(25, Math.min(80, playerDist * 0.6 + 20));
+                    // Capped so the camera's own natural range fits inside the
+                    // arena (camBound) without needing the wall-clamp below to
+                    // compress distance while height stays maxed out — that
+                    // mismatch was producing an overly steep, floor-heavy view.
+                    const dynamicCamDistance = Math.max(30, Math.min(80, playerDist * 0.5 + 25));
+                    const dynamicCamHeight = Math.max(20, Math.min(48, playerDist * 0.28 + 15));
 
                     const desiredCamPos = new THREE.Vector3(midpoint.x, dynamicCamHeight, midpoint.z - dynamicCamDistance);
                     desiredCamPos.x = Math.max(-camBound, Math.min(camBound, desiredCamPos.x));

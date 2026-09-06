@@ -18,6 +18,32 @@
         };
     }
 
+    // Host drives `player` locally (WASD) and treats `player2` as the network peer.
+    // Guest drives `player2` locally (arrow keys) and treats `player` as the network peer.
+    window.getOnlineLocalPlayer = function() {
+        if (typeof player !== 'undefined' && player.userData &&
+            (player.userData.onlineRole === 'host' || player.userData.onlineRole === 'local')) {
+            return player;
+        }
+        if (typeof player2 !== 'undefined' && player2.userData &&
+            (player2.userData.onlineRole === 'host' || player2.userData.onlineRole === 'local')) {
+            return player2;
+        }
+        return null;
+    };
+
+    window.getOnlineRemotePlayer = function(from) {
+        if (typeof player !== 'undefined' && player.userData &&
+            (player.userData.onlineRole === 'remote' || player.userData.onlineRole === 'guest')) {
+            return player;
+        }
+        if (typeof player2 !== 'undefined' && player2.userData &&
+            (player2.userData.onlineRole === 'remote' || player2.userData.onlineRole === 'guest')) {
+            return player2;
+        }
+        return null;
+    };
+
     window.onOnlineState = function(state, from) {
         if (!state) return;
         const remote = (typeof window.getOnlineRemotePlayer === 'function')
