@@ -1,6 +1,7 @@
 # Bumper Mayhem
 
 **3D Bumper Arena — Weapon Mayhem**
+Link for the game: https://rocketpi31415.github.io/bumper-mayhem/
 
 A browser-based 3D bumper-car combat game built with **Three.js**, featuring weapons, power-ups, bots, local 1v1 multiplayer, survival mode, and online 1v1 multiplayer.
 
@@ -20,14 +21,17 @@ Features include:
 - Connection-loss detection
 - Automatic reconnection attempts
 
-Production multiplayer server:
-
-https://rocketpi31415.github.io/bumper-mayhem/
-
 ### Survival
 
 Fight against bot opponents and try to be the last one standing.
 
+### Deathmatch
+
+Whoever gets the most kills wins!
+
+### 2v2 Deathmatch
+
+You are paired with a bot in a 2v2 Deathmatch
 ---
 
 # Weapons
