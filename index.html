@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Bumper Arena - Weapon Mayhem</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+</head>
+<body>
+
+    <div id="menu-overlay">
+        <div id="menu-card">
+            <h1>Weapon Mayhem</h1>
+            <p style="color: #bbb; font-size: 14px;">Collect crates & eliminate your opponents!</p>
+            
+            <label for="game-mode">Game Mode:</label>
+            <select id="game-mode">
+                <option value="classic" selected>Classic Deathmatch (2 Mins)</option>
+                <option value="online">1v1 Online Multiplayer</option>
+                <option value="onevone">1v1 Local Multiplayer (Same Keyboard)</option>
+                <option value="time_attack">Time Attack (60 Sec Rapid Match)</option>
+                <option value="survival">Survival (1 Life - Last One Standing)</option>
+                <option value="twovtwo">2v2 Team Battle (Paired with Bot)</option>
+            </select>
+
+            <label for="bot-difficulty" id="bot-setup-label">Bot Opponent Setup:</label>
+            <select id="bot-difficulty">
+                <option value="easy">All Rookie Bots (Easy)</option>
+                <option value="medium">All Pro Bumper Bots (Medium)</option>
+                <option value="hard">All Chaos Master Bots (Hard)</option>
+                <option value="mix" selected>Classic Mix (Easy, Medium, Hard)</option>
+            </select>
+
+            <button id="start-btn">START BATTLE</button>
+
+            <div id="online-panel" style="display:none; margin-top:12px;">
+                <button id="create-online-room-btn" type="button">CREATE 1v1 ROOM</button>
+                <div id="online-room-created" style="display:none; margin-top:10px;">
+                    <div style="font-size:12px;color:#aaa;margin-bottom:5px;">SEND THIS LINK TO YOUR OPPONENT:</div>
+                    <input id="online-room-link" type="text" readonly style="width:100%;padding:10px;border-radius:6px;border:1px solid #444;background:#111;color:#fff;">
+                    <button id="copy-online-link-btn" type="button" style="margin-top:8px;">COPY LINK</button>
+                    <div id="online-room-status" style="margin-top:8px;color:#f1c40f;font-size:13px;">Waiting for opponent...</div>
+                </div>
+                <div id="online-error" style="display:none;color:#e74c3c;font-size:13px;margin-top:8px;"></div>
+            </div>
+            <button id="tutorial-btn" type="button">📖 WEAPONS & POWER-UPS TUTORIAL</button>
+        </div>
+    </div>
+
+    <div id="ui">
+        <h2>Bumper Mayhem</h2>
+        <div id="timer-box">TIME: 02:00</div>
+        <div id="health-box">HP: 100 / 100</div>
+        <div id="stamina-box">STAMINA: 100 / 100</div>
+        <div id="stamina-bar-bg"><div id="stamina-bar-fill"></div></div>
+        <div id="kills">Kills: 0</div>
+        <div id="score-box">Team Score: 0 - 0</div>
+        <div id="weapon-box">Item: NONE</div>
+        <div id="charge-bar-bg"><div id="charge-bar-fill"></div></div>
+        <button id="audio-btn">🔊 Audio: ON</button>
+        <p style="margin: 8px 0 0 0; font-size: 12px; color: #aaa;" id="controls-info">
+            <b>WASD:</b> Drive (P1)<br>
+            <b>SHIFT:</b> Sprint (P1)<br>
+            <b>SPACE (HOLD):</b> Fire Item (P1)<br>
+            <b>ARROWS:</b> Drive (P2)<br>
+            <b>R-SHIFT / ENTER:</b> Sprint / Fire Item (P2)<br>
+            <b>ESC:</b> Pause
+        </p>
+    </div>
+
+    <div id="tutorial-overlay" aria-hidden="true">
+        <div id="tutorial-card">
+            <div id="tutorial-progress">TUTORIAL</div>
+            <h2 id="tutorial-title"></h2>
+            <div id="tutorial-icon"></div>
+            <div id="tutorial-body"></div>
+            <div id="tutorial-controls">
+                <button id="tutorial-prev" type="button">← BACK</button>
+                <span id="tutorial-page"></span>
+                <button id="tutorial-next" type="button">NEXT →</button>
+            </div>
+            <button id="tutorial-close" type="button">CLOSE TUTORIAL</button>
+        </div>
+    </div>
+
+
+    <div id="online-join-overlay" style="display:none;">
+        <div id="online-join-card">
+            <h2>ONLINE 1v1 MATCH</h2>
+            <p id="online-join-message">You were invited to a private 1v1 match.</p>
+            <button id="join-online-room-btn" type="button">JOIN MATCH</button>
+            <button id="cancel-online-join-btn" type="button">CANCEL</button>
+        </div>
+    </div>
+
+    <div id="powerup-notice">SHIELD ACTIVATED!</div>
+
+    <div id="respawn-overlay">
+        RESPAWNING IN <span id="respawn-timer">5</span>...
+    </div>
+
+    <div id="spectator-overlay">
+        <h3>You Were Eliminated</h3>
+        <div id="spectator-target-name">SPECTATING: BOT 1</div>
+        <div>
+            <button class="spec-btn" id="prev-target-btn" style="background: #3498db;">&lt; Prev</button>
+            <button class="spec-btn" id="next-target-btn" style="background: #3498db;">Next &gt;</button>
+        </div>
+        <button class="spec-btn" id="spec-menu-btn" style="background: #e74c3c; margin-top: 10px; width: 100%;">RETURN TO MAIN MENU</button>
+    </div>
+
+    <div id="game-over-overlay">
+        <div id="game-over-card">
+            <h1 style="color: #f1c40f; margin-bottom: 5px;">MATCH OVER!</h1>
+            <div id="winner-announcement">PLAYER WINS!</div>
+            <div id="final-scores"></div>
+            <button id="return-menu-btn">RETURN TO MENU</button>
+        </div>
+    </div>
+
+        <script src="js/arena.js"></script>
+    <script src="js/entities.js"></script>
+    <script src="js/weapons.js"></script>
+    <script src="js/combat.js"></script>
+    <script src="js/bots.js"></script>
+    <script src="js/players.js"></script>
+    <script src="js/ui.js"></script>
+    <script src="js/loop.js"></script>
+    <script src="js/main.js"></script>
+    <script src="js/tutorial.js"></script>
+    <script src="js/online.js"></script>
+    <script src="js/online_state.js"></script>
+</body>
+</html>
