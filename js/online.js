@@ -1,3 +1,7 @@
+// V76: authoritative client-side role used by the camera.
+// Host = Player 1, guest = Player 2.
+window.onlineIsHost = false;
+
 // V69 — Online 1v1 networking
 (() => {
     const ONLINE_SERVER_URL =
@@ -225,3 +229,8 @@
         send
     };
 })();
+
+// V76 role setter. Host is Player 1; guest is Player 2.
+window.setOnlineRole = function(host) {
+    window.onlineIsHost = !!host;
+};

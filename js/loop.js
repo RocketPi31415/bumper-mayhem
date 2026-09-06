@@ -332,32 +332,49 @@ function animate() {
                     }
                 }
 
-                if (selectedMode === 'onevone') {
-                    const midpoint = new THREE.Vector3();
-                    let playerDist = 0;
+                if (selectedMode === 'onevone' && window.__bumperOnlineMatch) {
+                    // V76: Online 1v1 camera follows the player's network role.
+                    // Host owns Player 1; guest owns Player 2.
+                    // Never assume `player` is the local player on the guest client.
+                    const isOnlineHost =
+                        window.onlineIsHost === true ||
+                        window.isOnlineHost === true ||
+                        window.onlineState?.isHost === true ||
+                        window.onlineState?.role === 'host' ||
+                        window.onlineState?.role === 'player1';
 
-                    if (!player.userData.isDead && !player2.userData.isDead) {
-                        midpoint.addVectors(player.position, player2.position).multiplyScalar(0.5);
-                        playerDist = player.position.distanceTo(player2.position);
-                    } else if (!player.userData.isDead) {
-                        midpoint.copy(player.position);
-                    } else if (!player2.userData.isDead) {
-                        midpoint.copy(player2.position);
-                    }
+                    const localPlayer = isOnlineHost ? player : player2;
 
-                    // Capped so the camera's own natural range fits inside the
-                    // arena (camBound) without needing the wall-clamp below to
-                    // compress distance while height stays maxed out — that
-                    // mismatch was producing an overly steep, floor-heavy view.
-                    const dynamicCamDistance = Math.max(30, Math.min(80, playerDist * 0.5 + 25));
-                    const dynamicCamHeight = Math.max(20, Math.min(48, playerDist * 0.28 + 15));
+                    const onlineCamOffset = new THREE.Vector3(0, CAM_HEIGHT, -CAM_DISTANCE)
+                        .applyAxisAngle(new THREE.Vector3(0, 1, 0), localPlayer.rotation.y);
 
-                    const desiredCamPos = new THREE.Vector3(midpoint.x, dynamicCamHeight, midpoint.z - dynamicCamDistance);
-                    desiredCamPos.x = Math.max(-camBound, Math.min(camBound, desiredCamPos.x));
-                    desiredCamPos.z = Math.max(-camBound, Math.min(camBound, desiredCamPos.z));
+                    const onlineCamPos = localPlayer.position.clone().add(onlineCamOffset);
+                    onlineCamPos.x = Math.max(-camBound, Math.min(camBound, onlineCamPos.x));
+                    onlineCamPos.z = Math.max(-camBound, Math.min(camBound, onlineCamPos.z));
 
-                    camera.position.copy(desiredCamPos);
-                    camera.lookAt(midpoint.x, 1.0, midpoint.z);
+                    camera.position.copy(onlineCamPos);
+                    camera.lookAt(
+                        localPlayer.position.x,
+                        localPlayer.position.y + 1,
+                        localPlayer.position.z
+                    );
+                } else if (selectedMode === 'onevone' && !window.__bumperOnlineMatch) {
+                    // V74: local 1v1 gets an independent follow camera for each player.
+                    const offset1 = new THREE.Vector3(0, CAM_HEIGHT, -CAM_DISTANCE)
+                        .applyAxisAngle(new THREE.Vector3(0, 1, 0), player.rotation.y);
+                    const pos1 = player.position.clone().add(offset1);
+                    pos1.x = Math.max(-camBound, Math.min(camBound, pos1.x));
+                    pos1.z = Math.max(-camBound, Math.min(camBound, pos1.z));
+                    camera.position.copy(pos1);
+                    camera.lookAt(player.position.x, player.position.y + 1, player.position.z);
+
+                    const offset2 = new THREE.Vector3(0, CAM_HEIGHT, -CAM_DISTANCE)
+                        .applyAxisAngle(new THREE.Vector3(0, 1, 0), player2.rotation.y);
+                    const pos2 = player2.position.clone().add(offset2);
+                    pos2.x = Math.max(-camBound, Math.min(camBound, pos2.x));
+                    pos2.z = Math.max(-camBound, Math.min(camBound, pos2.z));
+                    camera2.position.copy(pos2);
+                    camera2.lookAt(player2.position.x, player2.position.y + 1, player2.position.z);
                 }
 
                 if (selectedMode === 'survival' && player.userData.isDead) {
@@ -752,5 +769,31 @@ function animate() {
             }
 
             window.updateOnlineState?.(delta);
-            renderer.render(scene, camera);
+
+            // V74: render local 1v1 as two independent camera viewports.
+            const useLocalSplitScreen = selectedMode === 'onevone' && !window.__bumperOnlineMatch;
+            if (useLocalSplitScreen) {
+                const width = window.innerWidth;
+                const height = window.innerHeight;
+                const leftWidth = Math.floor(width / 2);
+
+                renderer.setScissorTest(true);
+
+                // Player 1 — left half.
+                renderer.setViewport(0, 0, leftWidth, height);
+                renderer.setScissor(0, 0, leftWidth, height);
+                renderer.render(scene, camera);
+
+                // Player 2 — right half.
+                renderer.setViewport(leftWidth, 0, width - leftWidth, height);
+                renderer.setScissor(leftWidth, 0, width - leftWidth, height);
+                renderer.render(scene, camera2);
+
+                renderer.setScissorTest(false);
+                renderer.setViewport(0, 0, width, height);
+            } else {
+                renderer.setScissorTest(false);
+                renderer.setViewport(0, 0, window.innerWidth, window.innerHeight);
+                renderer.render(scene, camera);
+            }
         }

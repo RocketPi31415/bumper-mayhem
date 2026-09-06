@@ -1,4 +1,8 @@
 window.enterOnlineMode = function(host) {
+    // V76: host is Player 1; guest is Player 2.
+    window.__bumperOnlineMatch = true;
+    window.onlineIsHost = !!host;
+    window.setOnlineRole?.(!!host);
     selectedMode = 'onevone';
     if (typeof player2 !== 'undefined') player2.visible = true;
 
@@ -112,14 +116,28 @@ function endGame() {
             document.getElementById('game-over-overlay').style.display = 'flex';
         }
 
+function updateLocalSplitScreenUI() {
+            const localSplit = selectedMode === 'onevone' && !window.__bumperOnlineMatch;
+            const divider = document.getElementById('local-split-divider');
+            const p1 = document.getElementById('local-split-p1');
+            const p2 = document.getElementById('local-split-p2');
+            [divider, p1, p2].forEach(el => {
+                if (el) el.style.display = localSplit ? 'block' : 'none';
+            });
+        }
+
 function startGame() {
             sound.init();
             sound.startBGM();
 
-            selectedMode = document.getElementById('game-mode').value;
+            const requestedMode = document.getElementById('game-mode').value;
+            // Local 1v1 and online 1v1 use different camera layouts.
+            window.__bumperOnlineMatch = requestedMode === 'online';
+            selectedMode = requestedMode;
             // Online Multiplayer uses the existing 1v1 gameplay path.
             // The menu value is 'online', but the physics/camera code expects 'onevone'.
             if (selectedMode === 'online') selectedMode = 'onevone';
+            updateLocalSplitScreenUI();
             const difficultySelect = document.getElementById('bot-difficulty').value;
 
             playerKills = 0;

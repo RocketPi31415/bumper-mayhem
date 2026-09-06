@@ -107,6 +107,8 @@ class SoundEngine {
         scene.background = new THREE.Color(0x0b0c10);
 
         const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+        // V74: second camera for local 1v1 split-screen.
+        const camera2 = new THREE.PerspectiveCamera(60, 0.5, 0.1, 1000);
         
         const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
@@ -117,6 +119,8 @@ class SoundEngine {
         window.addEventListener('resize', () => {
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
+            camera2.aspect = (window.innerWidth * 0.5) / window.innerHeight;
+            camera2.updateProjectionMatrix();
             renderer.setSize(window.innerWidth, window.innerHeight);
         });
 
