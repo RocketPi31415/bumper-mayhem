@@ -65,6 +65,33 @@
         }
     };
 
+    // Reliable gameplay action channel for effects that cannot be
+    // represented safely by independent client-side physics.
+    window.onOnlineAction = function(action, from) {
+        if (!action || action.type !== 'grappleHit') return;
+        if (window.__bumperOnlineMatch !== true) return;
+
+        const local = (typeof window.getOnlineLocalPlayer === 'function')
+            ? window.getOnlineLocalPlayer() : null;
+        const remote = (typeof window.getOnlineRemotePlayer === 'function')
+            ? window.getOnlineRemotePlayer(from) : null;
+
+        if (!local || !remote || local.userData.isDead) return;
+
+        // Apply the hit once, on the target's own client.
+        if (Number.isFinite(action.damage)) {
+            applyDamage(local, action.damage, remote);
+        }
+
+        if (!local.userData.isDead) {
+            local.userData.stunTimer = Number.isFinite(action.stun) ? action.stun : 90;
+            local.userData.dragState = {
+                puller: remote,
+                speed: Number.isFinite(action.speed) ? action.speed : 0.16
+            };
+        }
+    };
+
     window.updateOnlineState = function(dt) {
         if (typeof window.sendOnlineState !== 'function') return;
         if (!document.hidden) {

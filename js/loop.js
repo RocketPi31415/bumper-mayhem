@@ -429,14 +429,32 @@ function animate() {
                             hitTargets.forEach(target => {
                                 if (!target.userData.isDead && p.owner !== target && p.mesh.position.distanceTo(target.position) < 2.2) {
                                     sound.playBump();
-                                    applyDamage(target, p.damage, p.owner);
 
-                                    target.userData.stunTimer = 90;
+                                    const isOnline = window.__bumperOnlineMatch === true;
+                                    const isLocalTarget = isOnline && (
+                                        (window.onlineIsHost === true && target === player) ||
+                                        (window.onlineIsHost !== true && target === player2)
+                                    );
 
-                                    target.userData.dragState = {
-                                        puller: p.owner,
-                                        speed: 0.16
-                                    };
+                                    if (isOnline && !isLocalTarget) {
+                                        // The target belongs to the other client.
+                                        // Let that client apply the pull locally so
+                                        // incoming position snapshots cannot fight
+                                        // the drag physics and cause shaking.
+                                        window.sendOnlineAction?.({
+                                            type: 'grappleHit',
+                                            damage: p.damage,
+                                            stun: 90,
+                                            speed: 0.16
+                                        });
+                                    } else {
+                                        applyDamage(target, p.damage, p.owner);
+                                        target.userData.stunTimer = 90;
+                                        target.userData.dragState = {
+                                            puller: p.owner,
+                                            speed: 0.16
+                                        };
+                                    }
 
                                     p.life = 0;
                                 }
