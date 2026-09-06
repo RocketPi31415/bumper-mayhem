@@ -60,22 +60,40 @@ function spawnFlameParticle(entity) {
         }
 
 function setWeapon(wName, targetEntity = player) {
+            const isOnline1v1 = window.__bumperOnlineMatch === true;
+            const localEntity = isOnline1v1
+                ? (window.onlineIsHost === true ? player : player2)
+                : player;
+
             if (targetEntity === player) {
                 currentWeapon = wName;
-                const chargeBg = document.getElementById('charge-bar-bg');
-                if (chargeBg) chargeBg.style.display = (wName === 'nuke') ? 'block' : 'none';
 
-                if (wName === 'grapple') {
-                    document.getElementById('weapon-box').innerText = `P1 Item: ${WEAPON_NAMES[wName]} (${player.userData.grappleCount})`;
-                } else {
-                    document.getElementById('weapon-box').innerText = wName ? `P1 Item: ${WEAPON_NAMES[wName]}` : 'P1 Item: NONE';
+                if (targetEntity === localEntity) {
+                    const chargeBg = document.getElementById('charge-bar-bg');
+                    if (chargeBg) {
+                        chargeBg.style.display = (wName === 'nuke') ? 'block' : 'none';
+                    }
+
+                    if (wName === 'grapple') {
+                        document.getElementById('weapon-box').innerText =
+                            `${isOnline1v1 ? 'Item' : 'P1 Item'}: ${WEAPON_NAMES[wName]} (${player.userData.grappleCount})`;
+                    } else {
+                        document.getElementById('weapon-box').innerText =
+                            `${isOnline1v1 ? 'Item' : 'P1 Item'}: ${wName ? WEAPON_NAMES[wName] : 'NONE'}`;
+                    }
                 }
             } else if (targetEntity === player2) {
                 player2Weapon = wName;
+
+                // In an online match, never expose the remote player's item.
+                if (targetEntity !== localEntity) return;
+
                 if (wName === 'grapple') {
-                    document.getElementById('weapon-box').innerText += ` | P2: ${WEAPON_NAMES[wName]} (${player2.userData.grappleCount})`;
+                    document.getElementById('weapon-box').innerText =
+                        `Item: ${WEAPON_NAMES[wName]} (${player2.userData.grappleCount})`;
                 } else {
-                    document.getElementById('weapon-box').innerText = `P1: ${currentWeapon ? WEAPON_NAMES[currentWeapon] : 'NONE'} | P2: ${wName ? WEAPON_NAMES[wName] : 'NONE'}`;
+                    document.getElementById('weapon-box').innerText =
+                        `Item: ${wName ? WEAPON_NAMES[wName] : 'NONE'}`;
                 }
             }
         }

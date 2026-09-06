@@ -17,6 +17,8 @@ window.enterOnlineMode = function(host) {
     if (overlay) overlay.style.display = 'none';
 
     if (typeof startGame === 'function') startGame();
+    if (typeof updatePlayerUI === 'function') updatePlayerUI();
+    setTimeout(() => { if (typeof updatePlayerUI === 'function') updatePlayerUI(); }, 0);
 };
 
 

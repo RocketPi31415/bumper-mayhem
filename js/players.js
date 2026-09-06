@@ -2,32 +2,63 @@
 // Depends on: shared game state and UI elements.
 
 function updatePlayerUI() {
+            const isOnline1v1 = window.__bumperOnlineMatch === true;
+            const localIsP1 = isOnline1v1 ? (window.onlineIsHost === true) : true;
+
             if (selectedMode === 'onevone') {
-                document.getElementById('health-box').innerText = `P1 HP: ${Math.max(0, Math.round(player.userData.health))} | P2 HP: ${Math.max(0, Math.round(player2.userData.health))}`;
-                document.getElementById('stamina-box').innerText = `P1 STAMINA: ${Math.round(playerStamina)} | P2 STAMINA: ${Math.round(player2Stamina)}`;
+                document.getElementById('health-box').innerText =
+                    `P1 HP: ${Math.max(0, Math.round(player.userData.health))} | P2 HP: ${Math.max(0, Math.round(player2.userData.health))}`;
+
+                const localStamina = localIsP1 ? playerStamina : player2Stamina;
+                const localMaxStamina = localIsP1 ? playerMaxStamina : player2MaxStamina;
+                const localEntity = localIsP1 ? player : player2;
+                const localCooldown = localIsP1 ? playerStaminaCooldown : player2StaminaCooldown;
+
+                if (isOnline1v1) {
+                    document.getElementById('stamina-box').innerText =
+                        `STAMINA: ${Math.round(localStamina)} / ${localMaxStamina}`;
+                } else {
+                    document.getElementById('stamina-box').innerText =
+                        `P1 STAMINA: ${Math.round(playerStamina)} | P2 STAMINA: ${Math.round(player2Stamina)}`;
+                }
+
                 document.getElementById('kills').innerText = `P1 Score: ${playerKills} - P2 Score: ${player2Kills}`;
                 document.getElementById('score-box').style.display = 'none';
-                
+
                 const fill = document.getElementById('stamina-bar-fill');
-                fill.style.width = `${(playerStamina / playerMaxStamina) * 100}%`;
-                fill.style.backgroundColor = player.userData.nitroTimer > 0 ? '#e67e22' : (playerStaminaCooldown > 0 ? '#e74c3c' : '#3498db');
+                fill.style.width = `${(localStamina / localMaxStamina) * 100}%`;
+                fill.style.backgroundColor =
+                    localEntity.userData.nitroTimer > 0
+                        ? '#e67e22'
+                        : (localCooldown > 0 ? '#e74c3c' : '#3498db');
             } else {
-                document.getElementById('health-box').innerText = `HP: ${Math.max(0, Math.round(player.userData.health))} / 100`;
-                document.getElementById('stamina-box').innerText = `STAMINA: ${Math.round(playerStamina)} / ${playerMaxStamina}`;
+                document.getElementById('health-box').innerText =
+                    `HP: ${Math.max(0, Math.round(player.userData.health))} / 100`;
+                document.getElementById('stamina-box').innerText =
+                    `STAMINA: ${Math.round(playerStamina)} / ${playerMaxStamina}`;
+
                 const fill = document.getElementById('stamina-bar-fill');
                 fill.style.width = `${(playerStamina / playerMaxStamina) * 100}%`;
-                fill.style.backgroundColor = player.userData.nitroTimer > 0 ? '#e67e22' : (playerStaminaCooldown > 0 ? '#e74c3c' : '#3498db');
+                fill.style.backgroundColor =
+                    player.userData.nitroTimer > 0
+                        ? '#e67e22'
+                        : (playerStaminaCooldown > 0 ? '#e74c3c' : '#3498db');
+
                 document.getElementById('kills').innerText = `Kills: ${playerKills}`;
-                
+
                 if (selectedMode === 'twovtwo') {
                     document.getElementById('score-box').style.display = 'block';
-                    document.getElementById('score-box').innerText = `Team Score: ${team1Kills} - ${team2Kills}`;
+                    document.getElementById('score-box').innerText =
+                        `Team Score: ${team1Kills} - ${team2Kills}`;
                 } else {
                     document.getElementById('score-box').style.display = 'none';
                 }
             }
+
             updateHealthBar(player.userData.healthBar, player.userData.health);
-            if (selectedMode === 'onevone') updateHealthBar(player2.userData.healthBar, player2.userData.health);
+            if (selectedMode === 'onevone') {
+                updateHealthBar(player2.userData.healthBar, player2.userData.health);
+            }
         }
 
 function updateTimerUI() {
