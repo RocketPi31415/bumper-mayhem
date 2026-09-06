@@ -59,10 +59,10 @@ The game contains:
 | Cannon Ball | 100 |
 | Spiky Shields | 100 per hit |
 | Auto Minigun | 20 per shot |
-| Grappling Hook | 20 |
+| Grappling Hook | 20 per hook|
 | Tactical Nuke | 75 |
-| Invincible Star | No direct damage |
-| Fake Crate Trap | No direct damage value assigned |
+| Invincible Star | Kills when ramming into someone |
+| Fake Crate Trap | 100 dmg|
 
 ---
 
