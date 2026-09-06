@@ -436,3 +436,35 @@
 }
 #online-join-card h2 { margin-top:0; }
 #online-join-card button { margin-top:10px; }
+
+
+/* V74 — local 1v1 split-screen */
+#local-split-divider {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: 50%;
+    width: 3px;
+    transform: translateX(-50%);
+    background: rgba(255,255,255,0.75);
+    box-shadow: 0 0 10px rgba(0,0,0,0.9);
+    z-index: 6;
+    display: none;
+    pointer-events: none;
+}
+.local-split-label {
+    position: fixed;
+    top: 12px;
+    padding: 6px 10px;
+    border-radius: 6px;
+    background: rgba(0,0,0,0.72);
+    color: #fff;
+    font-size: 13px;
+    font-weight: 800;
+    letter-spacing: 1px;
+    z-index: 7;
+    display: none;
+    pointer-events: none;
+}
+#local-split-p1 { left: 12px; }
+#local-split-p2 { right: 12px; }
