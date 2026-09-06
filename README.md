@@ -22,7 +22,7 @@ Features include:
 
 Production multiplayer server:
 
-`wss://bumper-mayhem-server.onrender.com`
+https://rocketpi31415.github.io/bumper-mayhem/
 
 ### 1v1 Local Multiplayer
 
