@@ -24,16 +24,6 @@ Production multiplayer server:
 
 https://rocketpi31415.github.io/bumper-mayhem/
 
-### 1v1 Local Multiplayer
-
-Two players can play on the same keyboard.
-
-**Player 1**
-- WASD — Drive
-
-**Player 2**
-- Arrow Keys — Drive
-
 ### Survival
 
 Fight against bot opponents and try to be the last one standing.
