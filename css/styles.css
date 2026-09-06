@@ -1,0 +1,438 @@
+* { box-sizing: border-box; }
+        html, body {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            user-select: none;
+            background-color: #0f0f15;
+        }
+
+        canvas {
+            display: block;
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 1;
+        }
+
+        #menu-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(15, 15, 25, 0.92);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 10;
+            color: #fff;
+        }
+
+        #menu-card {
+            background: #1e1e2f;
+            padding: 35px;
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+            text-align: center;
+            max-width: 420px;
+            width: 90%;
+            border: 2px solid #333;
+        }
+
+        h1 {
+            margin-top: 0;
+            font-size: 30px;
+            color: #e74c3c;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        label {
+            display: block;
+            margin: 12px 0 4px;
+            font-size: 13px;
+            color: #aaa;
+            text-align: left;
+        }
+
+        select {
+            width: 100%;
+            padding: 10px;
+            border-radius: 8px;
+            background: #2a2a3d;
+            color: #fff;
+            border: 1px solid #444;
+            font-size: 15px;
+            outline: none;
+            cursor: pointer;
+        }
+
+        button {
+            margin-top: 20px;
+            width: 100%;
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            background: #e74c3c;
+            color: #fff;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.2s, transform 0.1s;
+        }
+
+        button:hover {
+            background: #c0392b;
+            transform: translateY(-2px);
+        }
+
+        #ui {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: #fff;
+            background: rgba(0, 0, 0, 0.85);
+            padding: 15px 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.6);
+            z-index: 5;
+            display: none;
+            width: 260px;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        #ui h2 {
+            margin: 0 0 5px 0;
+            font-size: 18px;
+            color: #e74c3c;
+        }
+
+        #timer-box {
+            font-size: 20px;
+            font-weight: bold;
+            color: #f1c40f;
+            margin: 4px 0 8px 0;
+            background: #1a1a24;
+            padding: 6px;
+            border-radius: 6px;
+            text-align: center;
+            border: 1px solid #f1c40f;
+        }
+
+        #kills {
+            font-size: 18px;
+            font-weight: bold;
+            color: #2ecc71;
+            margin: 5px 0;
+        }
+
+        #score-box {
+            font-size: 18px;
+            font-weight: bold;
+            color: #3498db;
+            margin: 5px 0;
+            display: none;
+        }
+
+        #health-box {
+            font-size: 18px;
+            font-weight: bold;
+            color: #e74c3c;
+            margin: 5px 0 2px 0;
+        }
+
+        #stamina-box {
+            font-size: 16px;
+            font-weight: bold;
+            color: #3498db;
+            margin: 2px 0 8px 0;
+        }
+
+        #stamina-bar-bg {
+            width: 100%;
+            background: #222;
+            border-radius: 5px;
+            overflow: hidden;
+            border: 1px solid #444;
+            margin-bottom: 8px;
+            height: 10px;
+        }
+
+        #stamina-bar-fill {
+            width: 100%;
+            height: 100%;
+            background: #3498db;
+            transition: width 0.1s linear, background-color 0.2s;
+        }
+
+        #weapon-box {
+            margin-top: 10px;
+            padding: 8px 12px;
+            background: #222233;
+            border-radius: 6px;
+            border: 1px solid #444;
+            font-size: 14px;
+            color: #f1c40f;
+            font-weight: bold;
+        }
+
+        #charge-bar-bg {
+            width: 100%;
+            background: #222;
+            border-radius: 5px;
+            overflow: hidden;
+            border: 1px solid #444;
+            margin-top: 6px;
+            height: 10px;
+            display: none;
+        }
+
+        #charge-bar-fill {
+            width: 0%;
+            height: 100%;
+            background: #e67e22;
+            transition: width 0.05s linear;
+        }
+
+        #audio-btn {
+            margin-top: 10px;
+            padding: 6px;
+            background: #34495e;
+            font-size: 12px;
+        }
+
+        #powerup-notice {
+            position: absolute;
+            top: 25%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #e67e22;
+            font-size: 28px;
+            font-weight: bold;
+            text-align: center;
+            text-shadow: 0 0 10px rgba(230, 126, 34, 0.8);
+            z-index: 8;
+            display: none;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 12px 24px;
+            border-radius: 10px;
+            border: 2px solid #e67e22;
+            pointer-events: none;
+        }
+
+        #respawn-overlay {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #fff;
+            font-size: 32px;
+            font-weight: bold;
+            text-align: center;
+            text-shadow: 0 0 10px rgba(231, 76, 60, 0.8);
+            z-index: 8;
+            display: none;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 20px 40px;
+            border-radius: 12px;
+            border: 2px solid #e74c3c;
+        }
+
+        #spectator-overlay {
+            position: absolute;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(15, 15, 25, 0.9);
+            padding: 15px 30px;
+            border-radius: 12px;
+            border: 2px solid #3498db;
+            color: #fff;
+            text-align: center;
+            z-index: 8;
+            display: none;
+            box-shadow: 0 0 20px rgba(0,0,0,0.8);
+        }
+
+        #spectator-overlay h3 {
+            margin: 0 0 8px 0;
+            color: #e74c3c;
+            font-size: 20px;
+            text-transform: uppercase;
+        }
+
+        #spectator-target-name {
+            font-size: 18px;
+            color: #f1c40f;
+            font-weight: bold;
+            margin-bottom: 12px;
+        }
+
+        .spec-btn {
+            padding: 8px 16px;
+            margin: 0 5px;
+            border-radius: 6px;
+            font-size: 14px;
+            width: auto;
+            display: inline-block;
+        }
+
+        #game-over-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(15, 15, 25, 0.95);
+            z-index: 15;
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: #fff;
+        }
+
+        #game-over-card {
+            background: #1e1e2f;
+            padding: 35px;
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+            text-align: center;
+            max-width: 440px;
+            width: 90%;
+            border: 2px solid #e74c3c;
+        }
+
+        #winner-announcement {
+            color: #2ecc71;
+            font-size: 22px;
+            margin: 15px 0 10px 0;
+        }
+
+        #final-scores {
+            text-align: left;
+            background: #2a2a3d;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+            font-size: 15px;
+        }
+
+        #final-scores ol {
+            margin: 8px 0 0 20px;
+            padding: 0;
+        }
+
+        #final-scores li {
+            margin-bottom: 5px;
+        }
+
+/* Interactive weapons & power-ups tutorial */
+#tutorial-btn {
+    margin-top: 10px;
+    width: 100%;
+    padding: 10px 12px;
+    border: 0;
+    border-radius: 6px;
+    background: #34495e;
+    color: #fff;
+    font-weight: 700;
+    cursor: pointer;
+}
+#tutorial-btn:hover { filter: brightness(1.15); }
+
+#tutorial-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0,0,0,.78);
+    padding: 20px;
+    box-sizing: border-box;
+}
+#tutorial-overlay.active { display: flex; }
+
+#tutorial-card {
+    width: min(680px, 94vw);
+    max-height: 90vh;
+    overflow: auto;
+    box-sizing: border-box;
+    padding: 26px;
+    border-radius: 14px;
+    background: #1b2631;
+    color: #fff;
+    border: 2px solid #5dade2;
+    box-shadow: 0 18px 60px rgba(0,0,0,.55);
+    text-align: center;
+}
+#tutorial-progress {
+    font-size: 12px;
+    letter-spacing: 2px;
+    color: #7fb3d5;
+    font-weight: 700;
+}
+#tutorial-title { margin: 8px 0; font-size: 28px; }
+#tutorial-icon { font-size: 56px; min-height: 64px; margin: 4px 0 12px; }
+#tutorial-body {
+    text-align: left;
+    font-size: 16px;
+    line-height: 1.55;
+    color: #eaecee;
+    min-height: 130px;
+}
+#tutorial-body .tutorial-tip {
+    margin-top: 14px;
+    padding: 10px 12px;
+    border-left: 4px solid #f1c40f;
+    background: rgba(241,196,15,.08);
+}
+#tutorial-controls {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-top: 20px;
+}
+#tutorial-controls button, #tutorial-close {
+    border: 0;
+    border-radius: 6px;
+    padding: 10px 14px;
+    font-weight: 700;
+    cursor: pointer;
+}
+#tutorial-prev, #tutorial-next { background: #3498db; color: #fff; }
+#tutorial-prev:disabled { opacity: .35; cursor: default; }
+#tutorial-page { color: #aaa; font-size: 13px; }
+#tutorial-close {
+    width: 100%;
+    margin-top: 12px;
+    background: #566573;
+    color: #fff;
+}
+
+
+/* V69 online multiplayer */
+#online-panel { width: 100%; }
+#online-room-link { box-sizing: border-box; }
+#online-join-overlay {
+    position: fixed; inset: 0; z-index: 2000;
+    display: none; align-items: center; justify-content: center;
+    background: rgba(0,0,0,.82); padding: 20px;
+}
+#online-join-card {
+    width: min(440px, 92vw);
+    background: #1b2631; color: #fff; padding: 28px;
+    border-radius: 14px; border: 2px solid #3498db;
+    text-align: center; box-shadow: 0 18px 60px rgba(0,0,0,.6);
+}
+#online-join-card h2 { margin-top:0; }
+#online-join-card button { margin-top:10px; }
