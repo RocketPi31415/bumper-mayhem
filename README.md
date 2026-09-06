@@ -1,127 +1,453 @@
-# V69 Refactored
+# Bumper Mayhem
 
-This is a structural refactor of V69.html.
+**3D Bumper Arena — Weapon Mayhem**
 
-## Files
+A browser-based 3D bumper-car combat game built with **Three.js**, featuring weapons, power-ups, bots, local 1v1 multiplayer, survival mode, and online 1v1 multiplayer.
 
-- `index.html` — page structure and external Three.js include
-- `css/styles.css` — all original CSS
-- `js/main.js` — shared state, constants, initialization, input listeners, and startup
-- `js/arena.js` — arena/maze/texture helpers
-- `js/entities.js` — vehicles and health bars
-- `js/weapons.js` — weapons, powerups, crates/effects
-- `js/combat.js` — damage, explosions, vehicle collisions
-- `js/bots.js` — bot creation, AI helpers, survival, crates
-- `js/players.js` — player lifecycle and HUD updates
-- `js/ui.js` — menu/match lifecycle
-- `js/loop.js` — main animation/game loop
+## Game Modes
 
-## Important
+### 1v1 Online Multiplayer
+Play against another person over the internet.
 
-The refactor uses classic `<script>` files rather than ES modules. This is intentional:
-V69 currently relies heavily on shared state such as `scene`, `player`, `bots`,
-`selectedMode`, `projectiles`, and other variables. Keeping those shared while
-moving function groups into separate files makes the code easier to maintain
-without requiring a risky rewrite of the game's architecture.
+Features include:
 
-Open `index.html` in a browser to run the game.
+- Private 1v1 rooms
+- Shareable room links
+- Host and guest players
+- WebSocket networking
+- Player state synchronization
+- Health synchronization
+- Connection-loss detection
+- Automatic reconnection attempts
 
-## Wall collision fix
+Production multiplayer server:
 
-The maze collision system now:
-- resolves vehicles that are already partially inside a wall instead of relying on the previous frame;
-- removes knockback directed into a wall;
-- performs a final wall-collision pass after vehicle-to-vehicle impacts, preventing bumper collisions from pushing cars into walls.
+`wss://bumper-mayhem-server.onrender.com`
 
+### 1v1 Local Multiplayer
 
-## V69 update
-- Player respawn countdown is now 5 seconds after destruction.
+Two players can play on the same keyboard.
 
+**Player 1**
+- WASD — Drive
 
-## V69 update
-- Power-up crates now check all active player and bot vehicles before spawning.
-- Crates require a 6-unit safety radius from vehicles at spawn.
-- Added a fallback search for crowded arenas to avoid placing crates inside vehicles.
+**Player 2**
+- Arrow Keys — Drive
 
+### Survival
 
-## V69 update
-- Fixed power-up crate visual overlap with vehicles.
-- Power-ups now trigger at 3.0 units instead of 2.2 units, so the crate is collected before the car body can visibly pass into it.
-- Retained the V59 spawn safety check that prevents power-ups from initially spawning on active vehicles.
+Fight against bot opponents and try to be the last one standing.
 
+---
 
-## V69 update
-- Rebuilt directly from V60; the main game loop is intact.
-- Changed only the power-up collection logic in `js/loop.js`.
-- Power-up pickup now uses a vehicle/crate footprint radius.
-- Bot pickup removes the crate rather than the bot.
+# Weapons
 
+The game contains:
 
-## V69 update
-- Added exact weapon damage information to the interactive tutorial based on the current game code.
-- Cannon Ball: 100 damage.
-- Spiky Shields: 100 damage per hit.
-- Auto Minigun: 20 damage per shot.
-- Grappling Hook: 20 damage per hook.
-- Tactical Nuke: 75 damage.
-- Invincible Star: no direct damage.
-- Fake Crate Trap: no direct damage value is assigned in the current weapon code.
+- **Cannon Ball**
+- **Invincible Star**
+- **Spiky Shields**
+- **Auto Minigun**
+- **Fake Crate Trap**
+- **Grappling Hook**
+- **Tactical Nuke**
 
-## V69 performance update
-- Added a conservative frame-time safeguard.
-- Avoids unnecessary rendering work when the browser tab is hidden.
-- Preserved gameplay systems, weapons, power-ups, tutorial, movement, and camera logic.
-- No features were intentionally removed.
+## Weapon Damage
 
-## V69 — Online 1v1 rooms
+| Weapon | Damage |
+|---|---:|
+| Cannon Ball | 100 |
+| Spiky Shields | 100 per hit |
+| Auto Minigun | 20 per shot |
+| Grappling Hook | 20 |
+| Tactical Nuke | 75 |
+| Invincible Star | No direct damage |
+| Fake Crate Trap | No direct damage value assigned |
 
-Added an `1v1 Online Multiplayer` menu option with private room links.
+---
 
-Important: a browser game served only as a static local HTML file cannot make
-an internet multiplayer room by itself. V69 includes a small WebSocket server
-in `server/` that creates/join rooms and relays messages.
+# Power-Ups
 
-To use it online, deploy `server/` to a publicly reachable Node.js host and
-configure the browser client's `ONLINE_SERVER_URL` to the resulting WSS endpoint.
+The game contains:
 
-## V69 — Online 1v1 networking
+- **Shield**
+- **Full Health**
+- **Overdrive Nitro**
 
-V69 builds on the V69 room/link system and adds a compact network-state adapter.
-The browser exchanges player transforms/health at about 15 updates per second
-instead of sending a full state every render frame.
+Temporary effects include:
 
-### Server
-Deploy the `server/` folder as a Node.js Web Service. The server must be publicly
-reachable over WebSockets. For an HTTPS game site, use the corresponding `wss://`
-server address in `js/online.js`.
+- Spawn invincibility
+- Stun
+- Shield protection
+- Nitro/boost
+- Spikes
+- Invincible Star
 
-### Important
-The existing offline gameplay remains available. Online room connection and basic
-state synchronization are included, but combat authority still depends on the
-existing game systems; this version does not rewrite weapon physics or damage rules.
+---
 
+# Interactive Tutorial
 
-## V69 camera fix
-Fixed the online-mode camera regression. The Online Multiplayer menu value is now
-mapped to the existing `onevone` gameplay mode before the game loop runs, so the
-normal 1v1 camera-follow logic is used instead of leaving the camera at its
-initial position. The camera also looks slightly above the arena floor to keep
-both cars visible.
+The game includes an interactive:
 
+**WEAPONS & POWER-UPS TUTORIAL**
 
-## V69 integrity + camera fix
+The tutorial explains the game's weapons and power-ups and includes weapon damage information.
 
-Root cause found in V69: `loop.js` called `window.updateOnlineState?.(dt)`,
-but the animation loop defines the frame delta as `delta`, not `dt`. Because
-JavaScript evaluates the argument before the optional call, this caused a
-`ReferenceError` every frame before `renderer.render(scene, camera)` could run.
-The camera therefore stayed at its initial position, producing the flat/empty
-view shown in the screenshot.
+The tutorial is implemented in:
 
-V69 changes that call to `window.updateOnlineState?.(delta)`.
+`js/tutorial.js`
 
-Integrity checks performed:
-- Node.js syntax check on every JavaScript file: PASS.
-- Every local JavaScript file referenced by index.html exists: PASS.
-- Search for the stale `dt` reference in gameplay loop: PASS after fix.
-- Camera writes reviewed: only the intended gameplay camera paths update it.
+The current tutorial is based on the **V65 tutorial version**.
+
+---
+
+# Combat System
+
+The combat system supports:
+
+- Weapon damage
+- Explosions
+- Vehicle-to-vehicle collisions
+- Knockback
+- Stun effects
+- Shield protection
+- Temporary invincibility
+- Nitro effects
+- Spike attacks
+- Weapon pickups
+- Power-up pickups
+
+---
+
+# Arena & Collision System
+
+The arena contains maze-style walls and collision handling designed to prevent vehicles from becoming stuck inside walls.
+
+The collision system:
+
+- Detects vehicle/wall intersections
+- Pushes vehicles out of walls
+- Handles vehicles that are already partially inside walls
+- Removes knockback directed into walls
+- Performs additional collision resolution after vehicle-to-vehicle impacts
+- Keeps vehicles inside the arena boundaries
+
+Power-up crates also use spawn-safety checks to reduce the chance of spawning directly on top of vehicles.
+
+---
+
+# Power-Up Crates
+
+The game contains collectible crates and power-up crates.
+
+Power-up spawning includes safety checks that consider nearby vehicles before placing a crate.
+
+Power-up collection uses a vehicle/crate footprint-based pickup radius.
+
+---
+
+# Player System
+
+Players have:
+
+- Health
+- Weapons
+- Shield timers
+- Nitro timers
+- Stun timers
+- Spawn invincibility
+- Death state
+- Respawn system
+- Health bars
+- HUD information
+
+Destroyed players use a **5-second respawn countdown**.
+
+---
+
+# Bot System
+
+The game includes AI-controlled opponents.
+
+Bots can:
+
+- Navigate the arena
+- Chase opponents
+- Search for crates
+- Pick up weapons
+- Use weapons
+- Attack opponents
+- Handle temporary effects
+- Participate in Survival mode
+- Respawn when applicable
+
+---
+
+# Camera
+
+The game has dedicated camera behavior for different game modes.
+
+The 1v1 camera follows the two-player action and calculates a midpoint between the players.
+
+Camera distance and height limits help keep the arena and vehicles properly framed.
+
+---
+
+# Performance
+
+The game includes performance safeguards such as:
+
+- Frame-time protection
+- Reduced unnecessary work when the browser tab is hidden
+- Network updates at approximately 15 updates per second rather than every render frame
+
+The multiplayer networking system is separated from the main rendering loop.
+
+---
+
+# Online Multiplayer Architecture
+
+The online system is split into two parts.
+
+### Browser Client
+
+Located in:
+
+```text
+js/online.js
+js/online_state.js
+```
+
+These files handle:
+
+- WebSocket connections
+- Room creation
+- Room joining
+- Invitation links
+- Connection status
+- Reconnection
+- Network state transmission
+- Receiving remote player state
+
+### Multiplayer Server
+
+Located in:
+
+```text
+server/
+├── server.js
+├── package.json
+└── README.md
+```
+
+The server provides:
+
+- Room creation
+- Room joining
+- Two-player room management
+- WebSocket connections
+- Message relaying
+- Disconnect handling
+- Health checking
+
+The server uses Node.js and the `ws` WebSocket package.
+
+---
+
+# Project Structure
+
+```text
+bumper-mayhem/
+│
+├── index.html
+│
+├── css/
+│   └── styles.css
+│
+├── js/
+│   ├── arena.js
+│   ├── bots.js
+│   ├── combat.js
+│   ├── entities.js
+│   ├── game.js
+│   ├── loop.js
+│   ├── main.js
+│   ├── online.js
+│   ├── online_state.js
+│   ├── players.js
+│   ├── tutorial.js
+│   ├── ui.js
+│   └── weapons.js
+│
+└── server/
+    ├── README.md
+    ├── package.json
+    └── server.js
+```
+
+## JavaScript Modules
+
+### `main.js`
+Contains shared game state, constants, initialization, input handling, and startup logic.
+
+### `arena.js`
+Handles the arena, maze walls, textures, crate textures, spawning, and wall collisions.
+
+### `entities.js`
+Creates vehicles and health bars.
+
+### `weapons.js`
+Handles weapons, power-ups, crates, projectiles, and weapon effects.
+
+### `combat.js`
+Handles damage, explosions, and vehicle collisions.
+
+### `bots.js`
+Handles bot creation, AI behavior, crate spawning, and Survival logic.
+
+### `players.js`
+Handles player health, deaths, respawning, HUD updates, and player lifecycle.
+
+### `ui.js`
+Handles menus, game-mode selection, match lifecycle, and interface events.
+
+### `loop.js`
+Contains the main game update/render loop, movement, camera updates, collisions, pickups, effects, and gameplay processing.
+
+### `tutorial.js`
+Contains the interactive weapons and power-ups tutorial.
+
+### `online.js`
+Handles online rooms, WebSocket connections, invitation links, and connection management.
+
+### `online_state.js`
+Handles networked player state synchronization.
+
+### `game.js`
+Currently exists as part of the project structure but is not the primary game-loop module.
+
+---
+
+# Server Setup
+
+The multiplayer server is a Node.js WebSocket server.
+
+From inside the `server` directory:
+
+```bash
+npm install
+npm start
+```
+
+The server uses Render's assigned `PORT` when deployed and falls back to port `8080` when running locally.
+
+## Health Check
+
+The server provides:
+
+```text
+/health
+```
+
+A working server returns a response indicating that the server is running and reports the current number of rooms.
+
+---
+
+# Controls
+
+### Player 1
+
+```text
+W — Forward
+A — Turn Left
+S — Reverse
+D — Turn Right
+```
+
+### Player 2
+
+```text
+↑ — Forward
+← — Turn Left
+↓ — Reverse
+→ — Turn Right
+```
+
+---
+
+# Development Notes
+
+The project uses **classic JavaScript `<script>` files rather than ES modules**.
+
+The modules intentionally share game state. This allows the game to remain compatible with the existing architecture while separating major systems into individual files.
+
+---
+
+# Online Server
+
+The current production multiplayer server is:
+
+```text
+wss://bumper-mayhem-server.onrender.com
+```
+
+The server is designed to support private 1v1 rooms.
+
+For production multiplayer, both players need internet access and the game must be served from a web-accessible location.
+
+---
+
+# Current Project Status
+
+- ✅ 3D bumper-car arena
+- ✅ Maze walls
+- ✅ Multiple game modes
+- ✅ Local 1v1
+- ✅ Online 1v1
+- ✅ Bots
+- ✅ Weapons
+- ✅ Power-ups
+- ✅ Collectible crates
+- ✅ Weapon damage system
+- ✅ Health system
+- ✅ Explosions
+- ✅ Vehicle collisions
+- ✅ Stun effects
+- ✅ Shield effects
+- ✅ Nitro
+- ✅ Invincible Star
+- ✅ Spiky Shields
+- ✅ Respawning
+- ✅ 5-second respawn countdown
+- ✅ Power-up spawn safety
+- ✅ Power-up pickup-radius handling
+- ✅ Interactive weapons/power-ups tutorial
+- ✅ Tutorial damage information
+- ✅ Online room links
+- ✅ WebSocket networking
+- ✅ Network state updates
+- ✅ Connection-loss handling
+- ✅ Reconnection attempts
+- ✅ Performance safeguards
+- ✅ Refactored JavaScript architecture
+
+---
+
+## Deployment Architecture
+
+The **game website** and the **multiplayer server** are separate components.
+
+```text
+                 BUMPER MAYHEM
+                       │
+             ┌─────────┴─────────┐
+             │                   │
+       Game Website        Multiplayer Server
+       GitHub Pages              Render
+             │                   │
+             └─────────┬─────────┘
+                       │
+                  Online 1v1
+```
+
+Hosting the HTML game alone does **not** provide online multiplayer. The WebSocket server must also be publicly accessible.
