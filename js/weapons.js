@@ -1,5 +1,32 @@
-// V65 Refactor — Weapons, powerups, and weapon effects
+// V85 — Online weapon synchronization (normal weapon behavior mirrored)
 // Depends on: THREE, sound, scene, players, bots, and shared game state.
+
+// Online weapon actions are executed on the owning player's client and then
+// mirrored on the other client. The guard prevents a mirrored action from
+// being echoed back to the server.
+window.__receivingOnlineWeaponAction = false;
+
+function isLocalOnlineEntity(entity) {
+    if (window.__bumperOnlineMatch !== true) return false;
+    return entity === (window.onlineIsHost === true ? player : player2);
+}
+
+function sendOnlineWeaponAction(payload) {
+    if (window.__receivingOnlineWeaponAction || !isLocalOnlineEntity(payload.entity)) return;
+    const entity = payload.entity;
+    const weapon = payload.weapon;
+    const action = {
+        type: 'weaponUse',
+        weapon,
+        grappleCount: weapon === 'grapple' ? entity.userData.grappleCount : undefined,
+        nukeChargeTime: weapon === 'nuke' ? (entity.userData.nukeChargeTime || 0) : undefined,
+        originX: weapon === 'nuke' ? entity.position.x : undefined,
+        originZ: weapon === 'nuke' ? entity.position.z : undefined,
+        rotationY: weapon === 'nuke' ? entity.rotation.y : undefined
+    };
+    delete action.entity;
+    window.sendOnlineAction?.(action);
+}
 
 function showPowerupNotice(type) {
             const noticeEl = document.getElementById('powerup-notice');
@@ -88,6 +115,9 @@ function setWeapon(wName, targetEntity = player) {
                 // In an online match, never expose the remote player's item.
                 if (targetEntity !== localEntity) return;
 
+                const chargeBg = document.getElementById('charge-bar-bg');
+                if (chargeBg) chargeBg.style.display = (wName === 'nuke') ? 'block' : 'none';
+
                 if (wName === 'grapple') {
                     document.getElementById('weapon-box').innerText =
                         `Item: ${WEAPON_NAMES[wName]} (${player2.userData.grappleCount})`;
@@ -108,6 +138,16 @@ function grantRandomWeapon(entity) {
             } else {
                 entity.userData.weapon = randomWep;
             }
+
+            // Sync the random weapon selection for online human players so
+            // both clients agree on the same crate result.
+            if ((entity === player || entity === player2) && isLocalOnlineEntity(entity) && !window.__receivingOnlineWeaponAction) {
+                window.sendOnlineAction?.({
+                    type: 'weaponGranted',
+                    weapon: randomWep,
+                    grappleCount: entity.userData.grappleCount
+                });
+            }
         }
 
 function useWeapon(entity) {
@@ -116,6 +156,13 @@ function useWeapon(entity) {
             const w = isPlayer1 ? currentWeapon : (isPlayer2 ? player2Weapon : entity.userData.weapon);
 
             if (!w || entity.userData.isDead) return;
+
+            // Mirror the exact weapon activation to the other client. The
+            // remote client runs the same normal weapon code, so online 1v1
+            // uses the same weapon behavior as bot battles.
+            if ((isPlayer1 || isPlayer2) && window.__bumperOnlineMatch === true && !window.__receivingOnlineWeaponAction) {
+                sendOnlineWeaponAction({ entity, weapon: w });
+            }
 
             if (w === 'nuke') {
                 sound.playLaser();
@@ -256,6 +303,8 @@ function useWeapon(entity) {
 
                 entity.userData.isStarActive = true;
                 entity.userData.starTimer = 180;
+                entity.userData.starStartedAt = performance.now();
+                entity.userData.starExpiresAt = performance.now() + 3000;
                 if (isPlayer1) {
                     isStarActive = true;
                     starTimer = 180;
@@ -267,19 +316,8 @@ function useWeapon(entity) {
                 else if (isPlayer2) setWeapon(null, player2);
                 else entity.userData.weapon = null;
 
-                if (isPlayer1) clearSpikes();
-                else clearBotSpikes(entity);
+                activateSpikyShield(entity);
 
-                entity.userData.activeSpikes = [];
-                for (let i = 0; i < 3; i++) {
-                    const spikeGeo = new THREE.SphereGeometry(0.5, 8, 8);
-                    const spikeMat = new THREE.MeshStandardMaterial({ color: 0xe74c3c, metalness: 0.9, roughness: 0.1 });
-                    const spike = new THREE.Mesh(spikeGeo, spikeMat);
-                    scene.add(spike);
-                    entity.userData.activeSpikes.push(spike);
-                    if (isPlayer1) activeSpikes.push(spike);
-                }
-                entity.userData.spikesTimer = 300;
             } 
             else if (w === 'minigun') {
                 if (isPlayer1) setWeapon(null, player);
@@ -339,6 +377,36 @@ function useWeapon(entity) {
 
                 droppedFakeCrates.push({ mesh: trap, owner: entity });
             }
+        }
+
+function activateSpikyShield(entity) {
+            if (!entity) return;
+
+            // Remove any existing shield visuals first.
+            if (entity === player) {
+                clearSpikes();
+            } else if (entity.userData && entity.userData.activeSpikes) {
+                entity.userData.activeSpikes.forEach(s => scene.remove(s));
+                entity.userData.activeSpikes = [];
+            }
+
+            entity.userData.activeSpikes = [];
+            for (let i = 0; i < 3; i++) {
+                const spikeGeo = new THREE.SphereGeometry(0.5, 8, 8);
+                const spikeMat = new THREE.MeshStandardMaterial({
+                    color: 0xe74c3c,
+                    metalness: 0.9,
+                    roughness: 0.1
+                });
+                const spike = new THREE.Mesh(spikeGeo, spikeMat);
+                scene.add(spike);
+                entity.userData.activeSpikes.push(spike);
+
+                if (entity === player) {
+                    activeSpikes.push(spike);
+                }
+            }
+            entity.userData.spikesTimer = 300;
         }
 
 function clearSpikes() {

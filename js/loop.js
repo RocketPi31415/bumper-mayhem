@@ -21,16 +21,20 @@ function animate() {
                 allVehicles.forEach(v => {
                     if (v.userData.chargingNuke && !v.userData.isDead) {
                         v.userData.nukeChargeTime = Math.min(5, v.userData.nukeChargeTime + delta);
-                        if (v === player) {
+                        const localOnlineEntity = window.__bumperOnlineMatch === true
+                            ? (window.onlineIsHost === true ? player : player2)
+                            : player;
+
+                        if (v === localOnlineEntity) {
                             const fill = document.getElementById('charge-bar-fill');
                             if (fill) fill.style.width = `${(v.userData.nukeChargeTime / 5) * 100}%`;
 
                             const projectedRange = 20 + (v.userData.nukeChargeTime / 5) * 230;
-                            const forwardDir = new THREE.Vector3(0, 0, 1).applyAxisAngle(new THREE.Vector3(0, 1, 0), player.rotation.y);
+                            const forwardDir = new THREE.Vector3(0, 0, 1).applyAxisAngle(new THREE.Vector3(0, 1, 0), v.rotation.y);
 
-                            const lineStart = player.position.clone().addScaledVector(forwardDir, 2.5);
+                            const lineStart = v.position.clone().addScaledVector(forwardDir, 2.5);
                             lineStart.y = 0.2;
-                            const lineEnd = player.position.clone().addScaledVector(forwardDir, projectedRange);
+                            const lineEnd = v.position.clone().addScaledVector(forwardDir, projectedRange);
                             lineEnd.y = 0.2;
 
                             const curvePoints = [];
@@ -50,7 +54,10 @@ function animate() {
                     }
                 });
 
-                if (!player.userData.chargingNuke || player.userData.isDead) {
+                const localOnlineEntity = window.__bumperOnlineMatch === true
+                    ? (window.onlineIsHost === true ? player : player2)
+                    : player;
+                if (!localOnlineEntity.userData.chargingNuke || localOnlineEntity.userData.isDead) {
                     nukeAimLine.visible = false;
                 }
 
@@ -151,14 +158,19 @@ function animate() {
                     }
                 });
 
-                if (!player.userData.isDead) {
+                const onlineMatch = window.__bumperOnlineMatch === true;
+                const onlineLocalIsP1 = window.onlineIsHost === true;
+
+                if (!player.userData.isDead && (!onlineMatch || onlineLocalIsP1)) {
                     const prevPos = player.position.clone();
 
                     let baseSpeed = isStarActive ? 0.38 : (player.userData.nitroTimer > 0 ? 0.56 : 0.28);
                     const turnSpeed = 0.05;
 
                     let isSprinting = false;
-                    const isMoving = keys['w'] || keys['s'];
+                    const isMoving = onlineMatch
+                        ? (keys['w'] || keys['s'] || keys['arrowup'] || keys['arrowdown'])
+                        : (keys['w'] || keys['s']);
 
                     const canControlPlayer = !player.userData.dragState && player.userData.stunTimer <= 0;
 
@@ -167,7 +179,7 @@ function animate() {
                             isSprinting = true;
                             playerStamina = playerMaxStamina;
                             playerStaminaCooldown = 0;
-                        } else if (keys['shift'] && playerStamina > 0 && isMoving) {
+                        } else if ((keys['shift'] || (onlineMatch && keys['rightshift'])) && playerStamina > 0 && isMoving) {
                             isSprinting = true;
                             baseSpeed *= 1.5;
                             playerStamina -= staminaDrainRate * delta;
@@ -185,16 +197,16 @@ function animate() {
 
                         let isDriving = false;
 
-                        if (keys['w']) {
+                        if (keys['w'] || (onlineMatch && keys['arrowup'])) {
                             player.translateZ(baseSpeed);
                             isDriving = true;
                         }
-                        if (keys['s']) {
+                        if (keys['s'] || (onlineMatch && keys['arrowdown'])) {
                             player.translateZ(-baseSpeed / 2);
                             isDriving = true;
                         }
-                        if (keys['a']) player.rotation.y += turnSpeed;
-                        if (keys['d']) player.rotation.y -= turnSpeed;
+                        if (keys['a'] || (onlineMatch && keys['arrowleft'])) player.rotation.y += turnSpeed;
+                        if (keys['d'] || (onlineMatch && keys['arrowright'])) player.rotation.y -= turnSpeed;
 
                         if (isDriving) {
                             player.userData.driveTime++;
@@ -209,7 +221,16 @@ function animate() {
                     player.position.z = Math.max(-bound, Math.min(bound, player.position.z));
                     handleMazeCollisions(player, prevPos);
 
-                    if (player.userData.spawnInvincibleTimer > 0) {
+                    if (window.__bumperOnlineMatch === true && player.userData.spawnInvincibleUntil > 0) {
+                        player.userData.spawnInvincibleTimer = Math.max(0,
+                            Math.ceil((player.userData.spawnInvincibleUntil - performance.now()) / (1000 / 60)));
+                        if (player.userData.spawnInvincibleTimer <= 0) {
+                            player.userData.spawnInvincibleUntil = 0;
+                            if (player.userData.stunTimer <= 0 && player.userData.shieldTimer <= 0 && !player.userData.isStarActive) {
+                                player.children[0].material.color.setHex(player.userData.baseColor);
+                            }
+                        }
+                    } else if (player.userData.spawnInvincibleTimer > 0) {
                         player.userData.spawnInvincibleTimer--;
                         const flash = Math.floor(player.userData.spawnInvincibleTimer / 10) % 2 === 0;
                         player.children[0].material.color.setHex(flash ? 0x00ffff : player.userData.baseColor);
@@ -218,12 +239,19 @@ function animate() {
                         }
                     }
 
-                    if (isStarActive) {
-                        starTimer--;
-                        player.children[0].material.color.setHSL((Date.now() % 500) / 500, 1.0, 0.5);
-                        if (starTimer <= 0) {
-                            isStarActive = false;
+                    if (player.userData.isStarActive) {
+                        const expiresAt = player.userData.starExpiresAt || (player.userData.starStartedAt + 3000);
+                        player.userData.starTimer = Math.max(0,
+                            Math.ceil((expiresAt - performance.now()) / (1000 / 60)));
+                        isStarActive = player.userData.starTimer > 0;
+                        starTimer = player.userData.starTimer;
+                        if (isStarActive) {
+                            player.children[0].material.color.setHSL((Date.now() % 500) / 500, 1.0, 0.5);
+                        } else {
                             player.userData.isStarActive = false;
+                            player.userData.starStartedAt = 0;
+                            player.userData.starExpiresAt = 0;
+                            isStarActive = false;
                             if (player.userData.stunTimer <= 0 && player.userData.shieldTimer <= 0) {
                                 player.children[0].material.color.setHex(player.userData.baseColor);
                             }
@@ -266,14 +294,17 @@ function animate() {
                     }
                 } 
 
-                if (selectedMode === 'onevone' && !player2.userData.isDead) {
+                if (selectedMode === 'onevone' && !player2.userData.isDead &&
+                    (!onlineMatch || !onlineLocalIsP1)) {
                     const prevPos2 = player2.position.clone();
 
-                    let baseSpeed2 = player2.userData.nitroTimer > 0 ? 0.56 : 0.28;
+                    let baseSpeed2 = player2.userData.isStarActive ? 0.38 : (player2.userData.nitroTimer > 0 ? 0.56 : 0.28);
                     const turnSpeed2 = 0.05;
 
                     let isSprinting2 = false;
-                    const isMoving2 = keys['arrowup'] || keys['arrowdown'];
+                    const isMoving2 = onlineMatch
+                        ? (keys['w'] || keys['s'] || keys['arrowup'] || keys['arrowdown'])
+                        : (keys['arrowup'] || keys['arrowdown']);
 
                     const canControlPlayer2 = !player2.userData.dragState && player2.userData.stunTimer <= 0;
 
@@ -282,7 +313,7 @@ function animate() {
                             isSprinting2 = true;
                             player2Stamina = player2MaxStamina;
                             player2StaminaCooldown = 0;
-                        } else if (keys['rightshift'] && player2Stamina > 0 && isMoving2) {
+                        } else if ((keys['rightshift'] || (onlineMatch && keys['shift'])) && player2Stamina > 0 && isMoving2) {
                             isSprinting2 = true;
                             baseSpeed2 *= 1.5;
                             player2Stamina -= staminaDrainRate * delta;
@@ -300,16 +331,16 @@ function animate() {
 
                         let isDriving2 = false;
 
-                        if (keys['arrowup']) {
+                        if (keys['arrowup'] || (onlineMatch && keys['w'])) {
                             player2.translateZ(baseSpeed2);
                             isDriving2 = true;
                         }
-                        if (keys['arrowdown']) {
+                        if (keys['arrowdown'] || (onlineMatch && keys['s'])) {
                             player2.translateZ(-baseSpeed2 / 2);
                             isDriving2 = true;
                         }
-                        if (keys['arrowleft']) player2.rotation.y += turnSpeed2;
-                        if (keys['arrowright']) player2.rotation.y -= turnSpeed2;
+                        if (keys['arrowleft'] || (onlineMatch && keys['a'])) player2.rotation.y += turnSpeed2;
+                        if (keys['arrowright'] || (onlineMatch && keys['d'])) player2.rotation.y -= turnSpeed2;
 
                         if (isDriving2) {
                             player2.userData.driveTime++;
@@ -322,12 +353,64 @@ function animate() {
                     player2.position.z = Math.max(-bound, Math.min(bound, player2.position.z));
                     handleMazeCollisions(player2, prevPos2);
 
-                    if (player2.userData.spawnInvincibleTimer > 0) {
+                    if (window.__bumperOnlineMatch === true && player2.userData.spawnInvincibleUntil > 0) {
+                        player2.userData.spawnInvincibleTimer = Math.max(0,
+                            Math.ceil((player2.userData.spawnInvincibleUntil - performance.now()) / (1000 / 60)));
+                        if (player2.userData.spawnInvincibleTimer <= 0) {
+                            player2.userData.spawnInvincibleUntil = 0;
+                            if (player2.userData.stunTimer <= 0 && player2.userData.shieldTimer <= 0 && !player2.userData.isStarActive) {
+                                player2.children[0].material.color.setHex(player2.userData.baseColor);
+                            }
+                        }
+                    } else if (player2.userData.spawnInvincibleTimer > 0) {
                         player2.userData.spawnInvincibleTimer--;
                         const flash = Math.floor(player2.userData.spawnInvincibleTimer / 10) % 2 === 0;
                         player2.children[0].material.color.setHex(flash ? 0x00ffff : player2.userData.baseColor);
                         if (player2.userData.spawnInvincibleTimer <= 0 && player2.userData.stunTimer <= 0 && player2.userData.shieldTimer <= 0) {
                             player2.children[0].material.color.setHex(player2.userData.baseColor);
+                        }
+                    }
+
+                    if (player2.userData.isStarActive) {
+                        const expiresAt2 = player2.userData.starExpiresAt || (player2.userData.starStartedAt + 3000);
+                        player2.userData.starTimer = Math.max(0,
+                            Math.ceil((expiresAt2 - performance.now()) / (1000 / 60)));
+                        if (player2.userData.starTimer > 0) {
+                            player2.children[0].material.color.setHSL((Date.now() % 500) / 500, 1.0, 0.5);
+                        } else {
+                            player2.userData.isStarActive = false;
+                            player2.userData.starStartedAt = 0;
+                            player2.userData.starExpiresAt = 0;
+                            if (player2.userData.stunTimer <= 0 && player2.userData.shieldTimer <= 0) {
+                                player2.children[0].material.color.setHex(player2.userData.baseColor);
+                            }
+                        }
+                    }
+                }
+
+                // V84: Player 2 also needs its own spike update loop.
+                // Previously only the player-1 `activeSpikes` array was moved,
+                // so Player 2's three shield objects stayed at their spawn point.
+                if (selectedMode === 'onevone' && player2.userData.activeSpikes && player2.userData.activeSpikes.length > 0) {
+                    const time2 = Date.now() * 0.005;
+                    player2.userData.activeSpikes.forEach((spike, idx) => {
+                        const angle = time2 + (idx * (Math.PI * 2 / 3));
+                        spike.position.x = player2.position.x + Math.cos(angle) * 3.5;
+                        spike.position.z = player2.position.z + Math.sin(angle) * 3.5;
+                        spike.position.y = 1;
+
+                        if (!player.userData.isDead && spike.position.distanceTo(player.position) < 2.0) {
+                            applyDamage(player, 100, player2);
+                        }
+                    });
+
+                    player2.userData.spikesTimer--;
+                    if (player2.userData.spikesTimer <= 0) {
+                        if (typeof clearBotSpikes === 'function') {
+                            clearBotSpikes(player2);
+                        } else {
+                            player2.userData.activeSpikes.forEach(s => scene.remove(s));
+                            player2.userData.activeSpikes = [];
                         }
                     }
                 }
@@ -631,7 +714,11 @@ function animate() {
                     }
 
                     if (bMesh.userData.isStarActive) {
-                        bMesh.userData.starTimer--;
+                        if (window.__bumperOnlineMatch === true && bMesh.userData.starStartedAt) {
+                            bMesh.userData.starTimer = Math.max(0, 180 - Math.floor((performance.now() - bMesh.userData.starStartedAt) / (1000 / 60)));
+                        } else {
+                            bMesh.userData.starTimer = Math.max(0, (Number(bMesh.userData.starTimer) || 0) - 1);
+                        }
                         bMesh.children[0].material.color.setHSL((Date.now() % 500) / 500, 1.0, 0.5);
                         if (bMesh.userData.starTimer <= 0) {
                             bMesh.userData.isStarActive = false;

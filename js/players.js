@@ -73,6 +73,8 @@ function killPlayer(targetPlayer = player) {
             if (targetPlayer === player) clearSpikes();
             nukeAimLine.visible = false;
             targetPlayer.userData.isDead = true;
+            targetPlayer.userData.spawnInvincibleTimer = 0;
+            targetPlayer.userData.spawnInvincibleUntil = 0;
             targetPlayer.userData.stunTimer = 0;
             targetPlayer.userData.dragState = null;
             targetPlayer.userData.shieldTimer = 0;
@@ -84,6 +86,9 @@ function killPlayer(targetPlayer = player) {
             targetPlayer.userData.driveTime = 0;
             targetPlayer.userData.grappleCount = 3;
             setWeapon(null, targetPlayer);
+            targetPlayer.userData.isStarActive = false;
+            targetPlayer.userData.starTimer = 0;
+            targetPlayer.userData.starStartedAt = 0;
             if (targetPlayer === player) isStarActive = false;
 
             document.getElementById('powerup-notice').style.display = 'none';
@@ -143,10 +148,17 @@ function killPlayer(targetPlayer = player) {
                     targetPlayer.userData.nitroTimer = 0;
                     targetPlayer.userData.chargingNuke = false;
                     targetPlayer.userData.nukeChargeTime = 0;
+                    targetPlayer.userData.isStarActive = false;
+                    targetPlayer.userData.starTimer = 0;
+                    targetPlayer.userData.starStartedAt = 0;
                     targetPlayer.children[0].material.color.setHex(targetPlayer.userData.baseColor);
                     targetPlayer.visible = true;
                     updatePlayerUI();
+                    // Spawn protection is exactly 3 seconds of real time.
+                    // Using an absolute deadline prevents network/state updates
+                    // from ever extending it indefinitely.
                     targetPlayer.userData.spawnInvincibleTimer = 180;
+                    targetPlayer.userData.spawnInvincibleUntil = performance.now() + 3000;
                 }
             }, 1000);
         }

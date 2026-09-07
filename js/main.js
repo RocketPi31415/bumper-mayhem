@@ -260,6 +260,7 @@ class SoundEngine {
         player.userData.baseColor = 0x3498db;
         player.userData.isDead = false;
         player.userData.spawnInvincibleTimer = 0;
+        player.userData.spawnInvincibleUntil = 0;
         updateHealthBar(player.userData.healthBar, 100);
 
         const player2 = createVehicle(0xe74c3c, 2);
@@ -268,6 +269,7 @@ class SoundEngine {
         player2.userData.baseColor = 0xe74c3c;
         player2.userData.isDead = false;
         player2.userData.spawnInvincibleTimer = 0;
+        player2.userData.spawnInvincibleUntil = 0;
         player2.visible = false;
         updateHealthBar(player2.userData.healthBar, 100);
 
@@ -296,19 +298,40 @@ class SoundEngine {
             }
         });
 
+        function getOnlineLocalEntity() {
+            if (window.__bumperOnlineMatch === true) {
+                return window.onlineIsHost === true ? player : player2;
+            }
+            return player;
+        }
+
         window.addEventListener('keydown', (e) => {
             sound.init();
             const k = e.key.toLowerCase();
-            if (!keys[k] && e.code === 'Space' && gameRunning && !player.userData.isDead) {
-                if (currentWeapon === 'nuke') {
-                    player.userData.chargingNuke = true;
-                    player.userData.nukeChargeTime = 0;
+            const online = window.__bumperOnlineMatch === true;
+            const localEntity = getOnlineLocalEntity();
+
+            // In online 1v1, both Space and Enter fire the LOCAL player's item.
+            // This is intentionally local-only: no keyboard event is ever sent
+            // to the opponent as an input command.
+            const fireKey = e.code === 'Space' || (online && e.key === 'Enter');
+            if (!keys[k] && fireKey && gameRunning && localEntity && !localEntity.userData.isDead) {
+                const weapon = localEntity === player ? currentWeapon : player2Weapon;
+                if (weapon === 'nuke') {
+                    localEntity.userData.chargingNuke = true;
+                    localEntity.userData.nukeChargeTime = 0;
+                    const chargeBg = document.getElementById('charge-bar-bg');
+                    const chargeFill = document.getElementById('charge-bar-fill');
+                    if (chargeBg) chargeBg.style.display = 'block';
+                    if (chargeFill) chargeFill.style.width = '0%';
                 } else {
-                    useWeapon(player);
+                    useWeapon(localEntity);
                 }
             }
 
-            if (!keys[k] && (e.key === 'Shift' && e.location === 2 || e.key === 'Enter') && gameRunning && selectedMode === 'onevone' && !player2.userData.isDead) {
+            // Keep the existing local-1v1 controls when that mode is used.
+            if (!online && !keys[k] && e.key === 'Shift' && e.location === 2 &&
+                gameRunning && selectedMode === 'onevone' && !player2.userData.isDead) {
                 if (player2Weapon === 'nuke') {
                     player2.userData.chargingNuke = true;
                     player2.userData.nukeChargeTime = 0;
@@ -330,14 +353,27 @@ class SoundEngine {
                 toggleMenu();
             }
         });
+
         window.addEventListener('keyup', (e) => {
             const k = e.key.toLowerCase();
-            if (e.code === 'Space' && gameRunning && !player.userData.isDead && currentWeapon === 'nuke' && player.userData.chargingNuke) {
-                useWeapon(player);
+            const online = window.__bumperOnlineMatch === true;
+            const localEntity = getOnlineLocalEntity();
+
+            // In online 1v1, both Space and Enter release the LOCAL player's nuke.
+            if (gameRunning && localEntity && !localEntity.userData.isDead &&
+                (e.code === 'Space' || (online && e.key === 'Enter'))) {
+                const weapon = localEntity === player ? currentWeapon : player2Weapon;
+                if (weapon === 'nuke' && localEntity.userData.chargingNuke) {
+                    useWeapon(localEntity);
+                }
             }
-            if ((e.key === 'Shift' && e.location === 2 || e.key === 'Enter') && gameRunning && selectedMode === 'onevone' && !player2.userData.isDead && player2Weapon === 'nuke' && player2.userData.chargingNuke) {
+
+            // Preserve the old local-1v1 Player 2 Enter/right-shift behavior.
+            if (!online && e.key === 'Enter' && gameRunning && selectedMode === 'onevone' &&
+                !player2.userData.isDead && player2Weapon === 'nuke' && player2.userData.chargingNuke) {
                 useWeapon(player2);
             }
+
             keys[k] = false;
             if (e.key === 'Shift' && e.location !== 2) keys['shift'] = false;
             if (e.key === 'Shift' && e.location === 2) keys['rightshift'] = false;

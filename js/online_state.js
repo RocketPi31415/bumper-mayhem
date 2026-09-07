@@ -1,4 +1,4 @@
-// V69 network state adapter. Loaded after the core game scripts.
+// V85 network state adapter. Loaded after the core game scripts.
 (() => {
     let accumulator = 0;
     const INTERVAL = 1 / 15;
@@ -14,7 +14,14 @@
         return {
             x: num(p?.x), y: num(p?.y), z: num(p?.z),
             rx: num(r?.x), ry: num(r?.y), rz: num(r?.z),
-            health: Number.isFinite(obj.userData?.health) ? obj.userData.health : null
+            health: Number.isFinite(obj.userData?.health) ? obj.userData.health : null,
+            isDead: !!obj.userData?.isDead,
+            isStarActive: !!obj.userData?.isStarActive,
+            starTimer: Number.isFinite(obj.userData?.starTimer) ? obj.userData.starTimer : 0,
+            spawnInvincibleTimer: Number.isFinite(obj.userData?.spawnInvincibleTimer) ? obj.userData.spawnInvincibleTimer : 0,
+            chargingNuke: !!obj.userData?.chargingNuke,
+            nukeChargeTime: Number.isFinite(obj.userData?.nukeChargeTime) ? obj.userData.nukeChargeTime : 0,
+            targetNukeCharge: Number.isFinite(obj.userData?.targetNukeCharge) ? obj.userData.targetNukeCharge : 5
         };
     }
 
@@ -63,33 +70,104 @@
         if (remote.userData && state.health != null) {
             remote.userData.health = state.health;
         }
+
+        if (remote.userData) {
+            const wasStarActive = !!remote.userData.isStarActive;
+            remote.userData.isDead = !!state.isDead;
+            remote.userData.isStarActive = !!state.isStarActive;
+            remote.userData.starTimer = Math.max(0, Number(state.starTimer) || 0);
+            if (remote.userData.isStarActive && !wasStarActive) {
+                remote.userData.starStartedAt = performance.now() -
+                    Math.max(0, 180 - remote.userData.starTimer) * (1000 / 60);
+                remote.userData.starExpiresAt = remote.userData.starStartedAt + 3000;
+            } else if (!remote.userData.isStarActive) {
+                remote.userData.starStartedAt = 0;
+                remote.userData.starExpiresAt = 0;
+            }
+            // Remote spawn protection is driven by the remote snapshot.
+            // The local player's timer is never overwritten here.
+            remote.userData.spawnInvincibleTimer = Math.max(0, Number(state.spawnInvincibleTimer) || 0);
+            remote.userData.chargingNuke = !!state.chargingNuke;
+            remote.userData.nukeChargeTime = Math.max(0, Number(state.nukeChargeTime) || 0);
+            remote.userData.targetNukeCharge = Math.max(0, Number(state.targetNukeCharge) || 5);
+        }
     };
 
     // Reliable gameplay action channel for effects that cannot be
     // represented safely by independent client-side physics.
     window.onOnlineAction = function(action, from) {
-        if (!action || action.type !== 'grappleHit') return;
-        if (window.__bumperOnlineMatch !== true) return;
+        if (!action || window.__bumperOnlineMatch !== true) return;
 
         const local = (typeof window.getOnlineLocalPlayer === 'function')
             ? window.getOnlineLocalPlayer() : null;
         const remote = (typeof window.getOnlineRemotePlayer === 'function')
             ? window.getOnlineRemotePlayer(from) : null;
 
-        if (!local || !remote || local.userData.isDead) return;
+        if (!local || !remote) return;
 
-        // Apply the hit once, on the target's own client.
-        if (Number.isFinite(action.damage)) {
-            applyDamage(local, action.damage, remote);
+        if (action.type === 'weaponGranted') {
+            const weapon = action.weapon;
+            if (!weapon || !Array.isArray(WEAPONS) || !WEAPONS.includes(weapon)) return;
+
+            // Mirror the crate result onto the remote player's representation.
+            remote.userData.grappleCount = Number.isFinite(action.grappleCount)
+                ? action.grappleCount : 3;
+            window.__receivingOnlineWeaponAction = true;
+            try {
+                setWeapon(weapon, remote);
+            } finally {
+                window.__receivingOnlineWeaponAction = false;
+            }
+            return;
         }
 
-        if (!local.userData.isDead) {
-            local.userData.stunTimer = Number.isFinite(action.stun) ? action.stun : 90;
-            local.userData.dragState = {
-                puller: remote,
-                speed: Number.isFinite(action.speed) ? action.speed : 0.16
-            };
+        if (action.type === 'weaponUse') {
+            const weapon = action.weapon;
+            if (!weapon || !Array.isArray(WEAPONS) || !WEAPONS.includes(weapon)) return;
+            if (remote.userData.isDead) return;
+
+            // Give the remote representation the exact same weapon before
+            // invoking the normal weapon implementation.
+            remote.userData.grappleCount = Number.isFinite(action.grappleCount)
+                ? action.grappleCount : remote.userData.grappleCount;
+            if (weapon === 'grapple' && !Number.isFinite(remote.userData.grappleCount)) {
+                remote.userData.grappleCount = 3;
+            }
+
+            if (weapon === 'nuke') {
+                remote.userData.nukeChargeTime = Number.isFinite(action.nukeChargeTime)
+                    ? Math.max(0, action.nukeChargeTime) : 0;
+                remote.userData.chargingNuke = true;
+            }
+
+            window.__receivingOnlineWeaponAction = true;
+            try {
+                setWeapon(weapon, remote);
+                useWeapon(remote);
+            } finally {
+                window.__receivingOnlineWeaponAction = false;
+            }
+            return;
         }
+
+        if (action.type === 'grappleHit') {
+            if (local.userData.isDead) return;
+
+            // Apply the hit once, on the target's own client.
+            if (Number.isFinite(action.damage)) {
+                applyDamage(local, action.damage, remote);
+            }
+
+            if (!local.userData.isDead) {
+                local.userData.stunTimer = Number.isFinite(action.stun) ? action.stun : 90;
+                local.userData.dragState = {
+                    puller: remote,
+                    speed: Number.isFinite(action.speed) ? action.speed : 0.16
+                };
+            }
+            return;
+        }
+
     };
 
     window.updateOnlineState = function(dt) {
