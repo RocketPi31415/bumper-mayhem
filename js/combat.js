@@ -13,25 +13,54 @@ function applyDamage(target, amount, attacker) {
             }
 
             target.userData.health -= amount;
-            
+
+            const onlineMatch = window.__bumperOnlineMatch === true;
+            const onlineLocal = onlineMatch && typeof window.getOnlineLocalPlayer === 'function'
+                ? window.getOnlineLocalPlayer() : null;
+
             if (target === player) {
                 updatePlayerUI();
                 if (target.userData.health <= 0) {
-                    if (attacker === player2) {
-                        player2Kills++;
-                    } else if (attacker && attacker.userData && attacker.userData.botRef) {
-                        attacker.userData.botRef.kills++;
-                        if (selectedMode === 'twovtwo') team2Kills++;
+                    if (onlineMatch) {
+                        // Online 1v1: the victim's own client is authoritative
+                        // for the kill. This prevents both clients from
+                        // independently counting the same death.
+                        if (onlineLocal === target) {
+                            let killerSlot = null;
+                            if (attacker === player) killerSlot = 'p1';
+                            else if (attacker === player2) killerSlot = 'p2';
+
+                            if (killerSlot === 'p2') player2Kills++;
+                            killPlayer(player, { killerSlot });
+                        }
+                    } else {
+                        if (attacker === player2) {
+                            player2Kills++;
+                        } else if (attacker && attacker.userData && attacker.userData.botRef) {
+                            attacker.userData.botRef.kills++;
+                            if (selectedMode === 'twovtwo') team2Kills++;
+                        }
+                        killPlayer(player);
                     }
-                    killPlayer(player);
                 }
             } else if (target === player2) {
                 updatePlayerUI();
                 if (target.userData.health <= 0) {
-                    if (attacker === player) {
-                        playerKills++;
+                    if (onlineMatch) {
+                        if (onlineLocal === target) {
+                            let killerSlot = null;
+                            if (attacker === player) killerSlot = 'p1';
+                            else if (attacker === player2) killerSlot = 'p2';
+
+                            if (killerSlot === 'p1') playerKills++;
+                            killPlayer(player2, { killerSlot });
+                        }
+                    } else {
+                        if (attacker === player) {
+                            playerKills++;
+                        }
+                        killPlayer(player2);
                     }
-                    killPlayer(player2);
                 }
             } else {
                 updateHealthBar(target.userData.healthBar, target.userData.health);

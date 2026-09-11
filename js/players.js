@@ -68,11 +68,42 @@ function updateTimerUI() {
             document.getElementById('timer-box').innerText = `TIME: ${formatted}`;
         }
 
-function killPlayer(targetPlayer = player) {
+function killPlayer(targetPlayer = player, options = {}) {
+            // V88: online death is a per-player network state.
+            // A client may locally detect that its remote representation died,
+            // but only the actual local player gets the respawn countdown.
+            const onlineMatch = window.__bumperOnlineMatch === true;
+            const localOnlinePlayer = (typeof window.getOnlineLocalPlayer === 'function')
+                ? window.getOnlineLocalPlayer() : null;
+            const isLocalOnlineDeath = !onlineMatch || targetPlayer === localOnlinePlayer;
+
+            // Never process a second death for an already-dead player.
+            if (targetPlayer.userData.isDead) return;
+
             sound.playExplosion();
+
             if (targetPlayer === player) clearSpikes();
             nukeAimLine.visible = false;
             targetPlayer.userData.isDead = true;
+
+            // V88: tell the other client exactly which player died.
+            // This makes death authoritative at the player-slot level and
+            // prevents the killer's browser from showing the victim's overlay.
+            if (onlineMatch && !options.fromNetwork && typeof window.sendOnlineAction === 'function') {
+                const targetSlot = targetPlayer === player ? 'p1' : (targetPlayer === player2 ? 'p2' : null);
+                if (targetSlot) {
+                    window.sendOnlineAction({
+                        type: 'playerDeath',
+                        targetSlot,
+                        killerSlot: options.killerSlot || null,
+                        eventId: options.eventId || (
+                            targetSlot + ':' + Date.now().toString(36) + ':' +
+                            Math.random().toString(36).slice(2)
+                        )
+                    });
+                }
+            }
+
             targetPlayer.userData.spawnInvincibleTimer = 0;
             targetPlayer.userData.spawnInvincibleUntil = 0;
             targetPlayer.userData.stunTimer = 0;
@@ -92,6 +123,12 @@ function killPlayer(targetPlayer = player) {
             if (targetPlayer === player) isStarActive = false;
 
             document.getElementById('powerup-notice').style.display = 'none';
+
+            // V88: a remote player's death is represented locally only.
+            // Do NOT start a respawn countdown on the opponent's screen.
+            if (onlineMatch && !isLocalOnlineDeath) {
+                return;
+            }
 
             if (selectedMode === 'survival') {
                 hud.style.display = 'none';
@@ -159,6 +196,20 @@ function killPlayer(targetPlayer = player) {
                     // from ever extending it indefinitely.
                     targetPlayer.userData.spawnInvincibleTimer = 180;
                     targetPlayer.userData.spawnInvincibleUntil = performance.now() + 3000;
+
+                    // V88: respawn is explicit and reliable so the opponent
+                    // cannot resurrect a dead player from an old state packet.
+                    if (onlineMatch && targetPlayer === localOnlinePlayer &&
+                        typeof window.sendOnlineAction === 'function') {
+                        const targetSlot = targetPlayer === player ? 'p1' :
+                            (targetPlayer === player2 ? 'p2' : null);
+                        if (targetSlot) {
+                            window.sendOnlineAction({
+                                type: 'playerRespawn',
+                                targetSlot
+                            });
+                        }
+                    }
                 }
             }, 1000);
         }

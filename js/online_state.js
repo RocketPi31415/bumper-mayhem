@@ -2,6 +2,9 @@
 (() => {
     let accumulator = 0;
     const INTERVAL = 1 / 15;
+    // Kill events are reliable, one-time events. Keep a small dedupe cache so
+    // reconnects or duplicate packets cannot award the same kill twice.
+    const processedKillEvents = new Set();
 
     function num(v) {
         return Number.isFinite(v) ? Math.round(v * 1000) / 1000 : 0;
@@ -51,13 +54,46 @@
         return null;
     };
 
+    window.getOnlineLocalSlot = function() {
+        return window.onlineIsHost === true ? 'p1' : 'p2';
+    };
+
+    function resetRemoteDeathState(remote) {
+        if (!remote || !remote.userData) return;
+        remote.userData.isDead = true;
+        remote.userData.health = 0;
+        remote.userData.spawnInvincibleTimer = 0;
+        remote.userData.spawnInvincibleUntil = 0;
+        remote.userData.stunTimer = 0;
+        remote.userData.dragState = null;
+        remote.userData.shieldTimer = 0;
+        remote.userData.nitroTimer = 0;
+        remote.userData.chargingNuke = false;
+        remote.userData.nukeChargeTime = 0;
+        remote.userData.isStarActive = false;
+        remote.userData.starTimer = 0;
+        remote.userData.starStartedAt = 0;
+        remote.userData.starExpiresAt = 0;
+        remote.visible = false;
+        remote.position.set(0, -500, 0);
+    }
+
+    function syncRemoteRespawn(remote, state) {
+        if (!remote || !remote.userData) return;
+        remote.userData.isDead = false;
+        remote.userData.health = Number.isFinite(state.health) ? state.health : 100;
+        remote.visible = true;
+    }
+
     window.onOnlineState = function(state, from) {
         if (!state) return;
         const remote = (typeof window.getOnlineRemotePlayer === 'function')
             ? window.getOnlineRemotePlayer(from) : null;
         if (!remote) return;
 
-        if (remote.position && state.x != null) {
+        // V88: never move a dead remote back into the arena from a stale
+        // position snapshot. A respawn snapshot is allowed to restore it.
+        if (remote.position && state.x != null && !state.isDead) {
             remote.position.x = state.x;
             remote.position.y = state.y;
             remote.position.z = state.z;
@@ -67,13 +103,25 @@
             remote.rotation.y = state.ry || 0;
             remote.rotation.z = state.rz || 0;
         }
-        if (remote.userData && state.health != null) {
+        if (remote.userData && state.health != null && !state.isDead) {
             remote.userData.health = state.health;
         }
 
         if (remote.userData) {
+            const wasDead = !!remote.userData.isDead;
             const wasStarActive = !!remote.userData.isStarActive;
-            remote.userData.isDead = !!state.isDead;
+
+            if (state.isDead) {
+                resetRemoteDeathState(remote);
+                return;
+            }
+
+            // V88: a dead remote is not resurrected by an ordinary state
+            // snapshot. Respawn is an explicit reliable action, preventing
+            // stale pre-death packets from bringing the player back early.
+            if (!wasDead && remote.visible === false) {
+                remote.visible = false;
+            }
             remote.userData.isStarActive = !!state.isStarActive;
             remote.userData.starTimer = Math.max(0, Number(state.starTimer) || 0);
             if (remote.userData.isStarActive && !wasStarActive) {
@@ -104,6 +152,62 @@
             ? window.getOnlineRemotePlayer(from) : null;
 
         if (!local || !remote) return;
+
+        if (action.type === 'playerRespawn') {
+            const localSlot = window.getOnlineLocalSlot();
+            const targetSlot = action.targetSlot;
+
+            if (targetSlot !== 'p1' && targetSlot !== 'p2') return;
+
+            if (targetSlot === localSlot) {
+                // Normally the local client already respawned itself.
+                // Do not restart its countdown or otherwise alter local state.
+                return;
+            }
+
+            // Explicitly restore only the opponent after their own respawn.
+            syncRemoteRespawn(remote, {
+                health: 100
+            });
+            return;
+        }
+
+        if (action.type === 'playerDeath') {
+            const localSlot = window.getOnlineLocalSlot();
+            const targetSlot = action.targetSlot;
+
+            if (targetSlot !== 'p1' && targetSlot !== 'p2') return;
+
+            // V89: the victim's client determines who got the kill and sends
+            // that result once. The other client applies the same score event
+            // instead of calculating its own local score.
+            const killerSlot = action.killerSlot;
+            const eventId = String(action.eventId || (
+                targetSlot + ':' + (killerSlot || 'unknown')
+            ));
+
+            if (killerSlot === 'p1' || killerSlot === 'p2') {
+                if (!processedKillEvents.has(eventId)) {
+                    processedKillEvents.add(eventId);
+                    if (killerSlot === 'p1') playerKills++;
+                    else player2Kills++;
+                    updatePlayerUI();
+                }
+            }
+
+            // If the dead player is local, run the normal local death flow so
+            // only that player sees the respawn countdown.
+            if (targetSlot === localSlot) {
+                if (!local.userData.isDead) {
+                    killPlayer(local, { fromNetwork: true });
+                }
+            } else {
+                // Otherwise this is the opponent. Hide them and keep them
+                // completely inactive without showing a local overlay.
+                resetRemoteDeathState(remote);
+            }
+            return;
+        }
 
         if (action.type === 'weaponGranted') {
             const weapon = action.weapon;
