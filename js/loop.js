@@ -267,12 +267,12 @@ function animate() {
                             spike.position.y = 1;
 
                             if (selectedMode === 'onevone' && !player2.userData.isDead && spike.position.distanceTo(player2.position) < 2.0) {
-                                applyDamage(player2, 100, player);
+                                applyDamage(player2, getWeaponCombatStats('spiky_balls').collisionDamage, player);
                             }
 
                             bots.forEach(bot => {
                                 if (!bot.mesh.userData.isDead && spike.position.distanceTo(bot.mesh.position) < 2.0) {
-                                    applyDamage(bot.mesh, 100, player);
+                                    applyDamage(bot.mesh, getWeaponCombatStats('spiky_balls').collisionDamage, player);
                                 }
                             });
                         });
@@ -400,7 +400,7 @@ function animate() {
                         spike.position.y = 1;
 
                         if (!player.userData.isDead && spike.position.distanceTo(player.position) < 2.0) {
-                            applyDamage(player, 100, player2);
+                            applyDamage(player, getWeaponCombatStats('spiky_balls').collisionDamage, player2);
                         }
                     });
 
@@ -527,15 +527,15 @@ function animate() {
                                         window.sendOnlineAction?.({
                                             type: 'grappleHit',
                                             damage: p.damage,
-                                            stun: 90,
-                                            speed: 0.16
+                                            stun: getWeaponCombatStats('grapple').stunFrames,
+                                            speed: getWeaponCombatStats('grapple').pullSpeed
                                         });
                                     } else {
                                         applyDamage(target, p.damage, p.owner);
-                                        target.userData.stunTimer = 90;
+                                        target.userData.stunTimer = getWeaponCombatStats('grapple').stunFrames;
                                         target.userData.dragState = {
                                             puller: p.owner,
-                                            speed: 0.16
+                                            speed: getWeaponCombatStats('grapple').pullSpeed
                                         };
                                     }
 
@@ -564,23 +564,23 @@ function animate() {
                             });
                         } else {
                             if (!player.userData.isDead && p.owner !== player && p.mesh.position.distanceTo(player.position) < 2.8) {
-                                applyDamage(player, 100, p.owner);
+                                applyDamage(player, getWeaponCombatStats('cannon').directDamage, p.owner);
                                 exploded = true;
                             }
                             if (selectedMode === 'onevone' && !player2.userData.isDead && p.owner !== player2 && p.mesh.position.distanceTo(player2.position) < 2.8) {
-                                applyDamage(player2, 100, p.owner);
+                                applyDamage(player2, getWeaponCombatStats('cannon').directDamage, p.owner);
                                 exploded = true;
                             }
                             bots.forEach(bot => {
                                 if (!bot.mesh.userData.isDead && p.owner !== bot.mesh && p.mesh.position.distanceTo(bot.mesh.position) < 2.8) {
-                                    applyDamage(bot.mesh, 100, p.owner);
+                                    applyDamage(bot.mesh, getWeaponCombatStats('cannon').directDamage, p.owner);
                                     exploded = true;
                                 }
                             });
                         }
 
                         if (p.isCannon && (exploded || p.life <= 0)) {
-                            triggerExplosion(p.mesh.position, p.owner);
+                            triggerExplosion(p.mesh.position, p.owner, getWeaponCombatStats('cannon').explosionDamage, getWeaponCombatStats('cannon').explosionRadius);
                             p.life = 0;
                         }
 
@@ -611,7 +611,7 @@ function animate() {
                     const activeTargets = [player, ...(selectedMode === 'onevone' ? [player2] : []), ...bots.map(b => b.mesh)];
                     activeTargets.forEach(target => {
                         if (!target.userData.isDead && target !== trap.owner && target.position.distanceTo(trap.mesh.position) < 2.0) {
-                            triggerExplosion(trap.mesh.position, trap.owner, 60, 10.0);
+                            triggerExplosion(trap.mesh.position, trap.owner, getWeaponCombatStats('fake_crate').explosionDamage, getWeaponCombatStats('fake_crate').explosionRadius);
                             scene.remove(trap.mesh);
                             droppedFakeCrates.splice(i, 1);
                         }
@@ -738,7 +738,7 @@ function animate() {
 
                             if (!player.userData.isDead && (selectedMode !== 'twovtwo' || bMesh.userData.team !== player.userData.team)) {
                                 if (spike.position.distanceTo(player.position) < 2.0) {
-                                    applyDamage(player, 100, bMesh);
+                                    applyDamage(player, getWeaponCombatStats('spiky_balls').collisionDamage, bMesh);
                                 }
                             }
 
@@ -746,7 +746,7 @@ function animate() {
                                 if (otherBot.mesh !== bMesh && !otherBot.mesh.userData.isDead) {
                                     if (selectedMode !== 'twovtwo' || bMesh.userData.team !== otherBot.mesh.userData.team) {
                                         if (spike.position.distanceTo(otherBot.mesh.position) < 2.0) {
-                                            applyDamage(otherBot.mesh, 100, bMesh);
+                                            applyDamage(otherBot.mesh, getWeaponCombatStats('spiky_balls').collisionDamage, bMesh);
                                         }
                                     }
                                 }

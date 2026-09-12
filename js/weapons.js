@@ -1,10 +1,28 @@
-// V85 — Online weapon synchronization (normal weapon behavior mirrored)
+// V90 — Online weapon synchronization and normal-match weapon parity (normal weapon behavior mirrored)
 // Depends on: THREE, sound, scene, players, bots, and shared game state.
 
 // Online weapon actions are executed on the owning player's client and then
 // mirrored on the other client. The guard prevents a mirrored action from
 // being echoed back to the server.
 window.__receivingOnlineWeaponAction = false;
+
+// V90 — Single source of truth for weapon combat values.
+// These are the values used by normal deathmatches. Online 1v1 transmits
+// these values with each weapon action so the remote representation cannot
+// silently fall back to different damage, stun, or projectile speed values.
+window.WEAPON_COMBAT_STATS = Object.freeze({
+    cannon: Object.freeze({ directDamage: 100, explosionDamage: 50, explosionRadius: 12.0, projectileSpeed: 0.8 }),
+    star: Object.freeze({ collisionDamage: 100, durationSeconds: 3 }),
+    spiky_balls: Object.freeze({ collisionDamage: 100, durationSeconds: 5 }),
+    minigun: Object.freeze({ damage: 20, projectileSpeed: 2.2, shotIntervalMs: 100, maxShots: 10 }),
+    fake_crate: Object.freeze({ explosionDamage: 100, explosionRadius: 10.0 }),
+    grapple: Object.freeze({ damage: 20, projectileSpeed: 1.0, stunFrames: 90, pullSpeed: 0.16 }),
+    nuke: Object.freeze({ damage: 75, chargeSeconds: 5, flightFrames: 83.037 })
+});
+
+function getWeaponCombatStats(weapon) {
+    return window.WEAPON_COMBAT_STATS?.[weapon] || {};
+}
 
 function isLocalOnlineEntity(entity) {
     if (window.__bumperOnlineMatch !== true) return false;
@@ -15,9 +33,11 @@ function sendOnlineWeaponAction(payload) {
     if (window.__receivingOnlineWeaponAction || !isLocalOnlineEntity(payload.entity)) return;
     const entity = payload.entity;
     const weapon = payload.weapon;
+    const stats = getWeaponCombatStats(weapon);
     const action = {
         type: 'weaponUse',
         weapon,
+        combatStats: stats,
         grappleCount: weapon === 'grapple' ? entity.userData.grappleCount : undefined,
         nukeChargeTime: weapon === 'nuke' ? (entity.userData.nukeChargeTime || 0) : undefined,
         originX: weapon === 'nuke' ? entity.position.x : undefined,
@@ -179,9 +199,10 @@ function useWeapon(entity) {
                     entity.userData.weapon = null;
                 }
 
-                const damage = 75;
-                const targetRange = 20 + (chargedSecs / 5) * 230;
-                const flightFrames = 83.037;
+                const stats = getWeaponCombatStats('nuke');
+                const damage = stats.damage;
+                const targetRange = 20 + (chargedSecs / stats.chargeSeconds) * 230;
+                const flightFrames = stats.flightFrames;
                 const nukeSpeed = targetRange / flightFrames;
 
                 const nukeGroup = new THREE.Group();
@@ -232,7 +253,7 @@ function useWeapon(entity) {
 
                 projectiles.push({
                     mesh: ball,
-                    velocity: dir.multiplyScalar(0.8),
+                    velocity: dir.multiplyScalar(getWeaponCombatStats('cannon').projectileSpeed),
                     life: 120,
                     owner: entity,
                     isCannon: true
@@ -274,11 +295,11 @@ function useWeapon(entity) {
 
                     projectiles.push({
                         mesh: hookGroup,
-                        velocity: dir.multiplyScalar(1.0),
+                        velocity: dir.multiplyScalar(getWeaponCombatStats('grapple').projectileSpeed),
                         life: 45,
                         owner: entity,
                         isGrapple: true,
-                        damage: 20
+                        damage: getWeaponCombatStats('grapple').damage
                     });
                 });
 
@@ -302,12 +323,12 @@ function useWeapon(entity) {
                 else entity.userData.weapon = null;
 
                 entity.userData.isStarActive = true;
-                entity.userData.starTimer = 180;
+                entity.userData.starTimer = getWeaponCombatStats('star').durationSeconds * 60;
                 entity.userData.starStartedAt = performance.now();
-                entity.userData.starExpiresAt = performance.now() + 3000;
+                entity.userData.starExpiresAt = performance.now() + getWeaponCombatStats('star').durationSeconds * 1000;
                 if (isPlayer1) {
                     isStarActive = true;
-                    starTimer = 180;
+                    starTimer = getWeaponCombatStats('star').durationSeconds * 60;
                 }
             } 
             else if (w === 'spiky_balls') {
@@ -328,7 +349,7 @@ function useWeapon(entity) {
                 let shotCount = 0;
 
                 const interval = setInterval(() => {
-                    if (!gameRunning || shotCount >= 10 || entity.userData.health <= 0 || entity.userData.isDead) {
+                    if (!gameRunning || shotCount >= getWeaponCombatStats('minigun').maxShots || entity.userData.health <= 0 || entity.userData.isDead) {
                         clearInterval(interval);
                         return;
                     }
@@ -350,14 +371,14 @@ function useWeapon(entity) {
 
                     projectiles.push({
                         mesh: bullet,
-                        velocity: dir.multiplyScalar(2.2),
+                        velocity: dir.multiplyScalar(getWeaponCombatStats('minigun').projectileSpeed),
                         life: 60,
                         owner: entity,
-                        damage: 20
+                        damage: getWeaponCombatStats('minigun').damage
                     });
 
                     shotCount++;
-                }, 100);
+                }, getWeaponCombatStats('minigun').shotIntervalMs);
             } 
             else if (w === 'fake_crate') {
                 sound.playBump();
@@ -406,7 +427,7 @@ function activateSpikyShield(entity) {
                     activeSpikes.push(spike);
                 }
             }
-            entity.userData.spikesTimer = 300;
+            entity.userData.spikesTimer = getWeaponCombatStats('spiky_balls').durationSeconds * 60;
         }
 
 function clearSpikes() {

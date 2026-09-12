@@ -1,4 +1,4 @@
-// V85 network state adapter. Loaded after the core game scripts.
+// V90 network state adapter. Loaded after the core game scripts.
 (() => {
     let accumulator = 0;
     const INTERVAL = 1 / 15;
@@ -231,7 +231,19 @@
             if (remote.userData.isDead) return;
 
             // Give the remote representation the exact same weapon before
-            // invoking the normal weapon implementation.
+            // invoking the normal weapon implementation. The combat profile
+            // is sent with the action and is checked against the shared
+            // normal-match profile, so every online weapon uses the same
+            // damage/stun/speed values as bot deathmatches.
+            const expectedStats = (typeof getWeaponCombatStats === 'function')
+                ? getWeaponCombatStats(weapon) : {};
+            const receivedStats = action.combatStats || {};
+            // Do not allow arbitrary network values to alter the game's rules.
+            // The shared profile is authoritative on both clients.
+            remote.userData.onlineWeaponStats = expectedStats;
+            remote.userData.onlineWeaponStatsVerified = Object.keys(expectedStats).every(key =>
+                receivedStats[key] === undefined || receivedStats[key] === expectedStats[key]
+            );
             remote.userData.grappleCount = Number.isFinite(action.grappleCount)
                 ? action.grappleCount : remote.userData.grappleCount;
             if (weapon === 'grapple' && !Number.isFinite(remote.userData.grappleCount)) {
@@ -263,10 +275,11 @@
             }
 
             if (!local.userData.isDead) {
-                local.userData.stunTimer = Number.isFinite(action.stun) ? action.stun : 90;
+                const grappleStats = getWeaponCombatStats('grapple');
+                local.userData.stunTimer = grappleStats.stunFrames;
                 local.userData.dragState = {
                     puller: remote,
-                    speed: Number.isFinite(action.speed) ? action.speed : 0.16
+                    speed: grappleStats.pullSpeed
                 };
             }
             return;
